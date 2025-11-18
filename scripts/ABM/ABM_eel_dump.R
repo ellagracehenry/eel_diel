@@ -237,7 +237,6 @@ results_data_d <- results_data/29184
 avg_prop_up <- mean(results_data_d)
     
 df_long <- melt(data, id.vars = "individual_ID")
-
 df_long$variable <- as.numeric(df_long$variable)
 
 ggplot(df_long, aes(x = variable, y = individual_ID, fill = factor(value))) +
