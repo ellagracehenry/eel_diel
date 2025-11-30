@@ -11,6 +11,7 @@ library(MASS)
 #Functions
 source("scripts/ABM/R/fill_holes.R")
 source("scripts/ABM/R/foraging_nonstatedependent.R")
+source("scripts/ABM/R/isolate_perturbed_hides.R")
 
 #Loading in empirical data
 data <- read.csv(
@@ -41,17 +42,41 @@ df_run_length <- df_long %>%
   filter(!individual_ID %in% c(1,2)) %>%
   ungroup() %>%
   group_by(individual_ID) %>%
-  mutate(cum_val = cumsum(run_length), seg = ceiling(cumsum(run_length)/512), seg_ID = (seg-1) + 7, second = cum_val-(seg-1)*512) %>%
+  mutate(cum_val = cumsum(run_length), start_time = cumsum(run_length) - run_length, seg = ceiling(start_time/512), seg_ID = (seg-1) + 7, second = start_time-(seg-1)*512) %>%
   ungroup()
   
 df_run_length_hide <- df_run_length %>%
-  filter(value == 0) %>%
-  dplyr::pull(run_length)
+  filter(value == 0) #%>%
+  #dplyr::pull(run_length)
 
 df_run_length_emerge <- df_run_length %>%
-  filter(value == 1) %>%
-  dplyr::pull(run_length)
+  filter(value == 1) #%>%
+  #dplyr::pull(run_length)
 
-#non state dependent
+#non state dependent - parameterized by per cap proportion of time emerged 
 results <- non_state_dependent_submodel(data, 29184, avg_prop_up)
+
+results <- geometric_submodel(data)
+
+results <- nbinomial_submodel(data)
+
+
+#Plotting raw data
+ggplot(results, aes(x = variable, y = individual_ID, fill = factor(value))) +
+  geom_tile() +
+  scale_fill_manual(values = c("0" = "black", "1" = "white")) +
+  theme_minimal() +
+  theme(
+    panel.grid = element_blank(),
+    legend.position = "none"
+  ) +
+  labs(x = NULL, y = NULL, title = "Simulation with a switching prob calculated from nb distr")
+
+#Isolating perturbed hides
+peturb_only <- isolate_perturbed_hides(df_run_length)
+
+inverse_df <- anti_join(df_run_length_hide, peturb_only)
+
+mean(df_run_length$run_length)
+
 

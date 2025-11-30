@@ -411,7 +411,7 @@ ggplot() +
   geom_step(data = df_cdf, aes(x = run_length, y = cum_prob, color = "Empirical"), linewidth = 1) +
   geom_line(data = df_plot, aes(x = run_length, y = cum_prob, color = dist), linewidth = 1, linetype = "dashed") +
   scale_color_manual(values = c("Empirical" = "blue", "geom" = "red", "poisson" = "green", "negbin" = "purple"),
-                     labels = c("Empirical", "Geometric", "Poisson", "Neg. Binomial")) +
+                     labels = c("Empirical", "Geometric", "Neg. Binomial","Poisson")) +
   labs(
     title = "Empirical CDF of Emerged Run Lengths with Fitted Distributions",
     x = "Run Length",
@@ -462,15 +462,20 @@ fit_nb <- fitdistr(df_run_length$run_length, "Negative Binomial")
 size_hat <- fit_nb$estimate["size"]
 mu_hat   <- fit_nb$estimate["mu"]
 
+fit_pois <- fitdistr(df_run_length$run_length, "Poisson")
+lambda_hat <- fit_pois$estimate
+
 # Fitted CDF
 cdf_nb <- pnbinom(x_seq, size = size_hat, mu = mu_hat)
+
+cdf_pois <- ppois(x_seq, lambda_hat)
 
 # -------------------------
 # 4. Simulate 95% confidence band
 # -------------------------
 n_sim <- 1000
 sim_cdfs <- map_dfr(1:n_sim, function(i) {
-  r <- rnbinom(N, size = size_hat, mu = mu_hat)
+  r <- rpois(N, lambda_hat)
   tibble(
     run_length = x_seq,
     cum_prob = ecdf(r)(x_seq),
@@ -504,7 +509,7 @@ ggplot() +
   ) +
   # Fitted negative binomial CDF
   geom_line(
-    data = tibble(run_length = x_seq, cum_prob = cdf_nb),
+    data = tibble(run_length = x_seq, cum_prob = cdf_pois),
     aes(x = run_length, y = cum_prob, color = "Neg. Binomial fit"),
     linewidth = 1, linetype = "dashed"
   ) +
