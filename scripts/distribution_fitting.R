@@ -6,7 +6,7 @@ df_run_length_emerge <- df_run_length %>%
   filter(value == 1) #%>%
 #dplyr::pull(run_length)
 
-df_run_length_hide <- df_run_length_emerge
+
 #Geometric distribution
 # Estimate geometric parameter
 p_hat <- 1 / mean(df_run_length_hide$run_length)
@@ -82,7 +82,7 @@ ggplot() +
   )) +
   
   labs(
-    title = "Emerge run lengths, geometric",
+    title = "Hide run lengths, geometric",
     subtitle = paste0("p̂ = ", round(p_hat, 4)),
     x = "Run length",
     y = "Cumulative probability",
@@ -214,7 +214,7 @@ ggplot() +
   )) +
   
   labs(
-    title = "Emerge run lengths, negative binomial",
+    title = "Hide run lengths, negative binomial",
     subtitle = paste0("p̂ = ", round(p_hat, 4)),
     x = "Run length",
     y = "Cumulative probability",
