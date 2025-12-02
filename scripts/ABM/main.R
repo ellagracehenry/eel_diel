@@ -64,48 +64,4 @@ results <- geometric_submodel(data)
 
 results <- nbinomial_submodel(data)
 
-#Histogram of run lengths
-results_run_length <- results %>%
-  group_by(individual_ID) %>%
-  arrange(variable, .by_group = TRUE) %>%
-  reframe({
-    r <- rle(value)
-    tibble(value = r$values,
-           run_length = r$lengths)
-  }) %>%
-  filter(!individual_ID %in% c(1,2)) %>%
-  ungroup() %>%
-  group_by(individual_ID) %>%
-  mutate(cum_val = cumsum(run_length), start_time = cumsum(run_length) - run_length, seg = ceiling(start_time/512), seg_ID = (seg-1) + 7, second = start_time-(seg-1)*512) %>%
-  ungroup()
-
-results_run_length_hide <- results_run_length %>%
-  filter(value == 0) #%>%
-#dplyr::pull(run_length)
-
-results_run_length_emerge <- results_run_length %>%
-  filter(value == 1) #%>%
-#dplyr::pull(run_length)
-
-#Plotting raw data or sim
-hist(results_run_length_hide$run_length)
-
-results %>%
-ggplot(aes(x = variable, y = individual_ID, fill = factor(value))) +
-  geom_tile() +
-  scale_fill_manual(values = c("0" = "black", "1" = "white")) +
-  theme_minimal() +
-  theme(
-    panel.grid = element_blank(),
-    legend.position = "none"
-  ) +
-  labs(x = NULL, y = NULL, title = "Simulation with a switching prob calculated from nb distr")
-
-#Isolating perturbed hides
-peturb_only <- isolate_perturbed_hides(df_run_length)
-
-inverse_df <- anti_join(df_run_length_hide, peturb_only)
-
-mean(df_run_length$run_length)
-
-
+results <- SIR_submodel(data)

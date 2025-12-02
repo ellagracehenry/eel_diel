@@ -58,3 +58,7 @@ mean(df_run_length$run_length)
 positions <- data.frame(rnorm(26, 2,1),rnorm(26, 2,1),1:26)
 names(positions) <- c("x","y","individual_ID")
 df_long_positions <- left_join(df_long,positions,by="individual_ID")
+
+#Testing activation function
+df_long <- calculate_state_changes(df_long)
+df_long <- activation_function(df_long)
