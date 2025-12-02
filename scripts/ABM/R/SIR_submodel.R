@@ -12,11 +12,15 @@ state_record = matrix(NA, nrow = N, ncol = T)
 states = sample(c(0,1), N, replace = TRUE)
 state_record[,1]  <- states
 
-df_state_changes <- data.frame(
-  individual_ID = integer(0),
-  time = integer(0),
-  state_change = integer(0)
-)
+startled_matrix <- matrix(FALSE, nrow=N, ncol=T)
+
+w <- matrix(1, nrow=N, ncol=N)
+
+max_logs <- N * T
+log_i     <- integer(max_logs)
+log_time  <- integer(max_logs)
+log_change<- integer(max_logs)
+log_idx <- 1
   
 for(t in 1:(T-1)) {
     for (i in 1:N){
@@ -24,8 +28,9 @@ for(t in 1:(T-1)) {
       K <- sum(state_record[,t]) #number of emerged individuals
       
       if (current_state == 1) {
-        new_state <- startle_activation(i, df_state_changes, t, tm, df_agents$a_threshold[i],K)
+        new_state <- startle_activation(i, startled_matrix, w, t, tm, df_agents$a_threshold[i],K)
         if (new_state == 1) {
+          #Spontaneous hide
           if (rbinom(1,1,0.1) == 1) {
             new_state <- 0
            } else {
@@ -35,20 +40,16 @@ for(t in 1:(T-1)) {
           new_state <- 0
         }
         } else {
+      #Emerge
       new_state <- rbinom(1,1,0.3)
       }
 
       state_record[i,t+1] <- new_state
       
       if (new_state != current_state) {
-        df_state_changes <- rbind(
-          df_state_changes,
-          data.frame(
-            individual_ID = i,
-            time = t+1,
-            state_change = new_state - current_state
-          )
-        )
+        if (new_state != current_state && new_state == 0) {
+          startled_matrix[i, t+1] <- TRUE
+        }
       }
     }
   }
