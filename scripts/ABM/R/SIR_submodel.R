@@ -31,7 +31,7 @@ for(t in 1:(T-1)) {
         new_state <- startle_activation(i, startled_matrix, w, t, tm, df_agents$a_threshold[i],K)
         if (new_state == 1) {
           #Spontaneous hide
-          if (rbinom(1,1,0.1) == 1) {
+          if (rbinom(1,1,0.001) == 1) {
             new_state <- 0
            } else {
              new_state <- 1
@@ -41,7 +41,7 @@ for(t in 1:(T-1)) {
         }
         } else {
       #Emerge
-      new_state <- rbinom(1,1,0.3)
+      new_state <- rbinom(1,1,0.005)
       }
 
       state_record[i,t+1] <- new_state
