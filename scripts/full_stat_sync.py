@@ -18,15 +18,15 @@ from sync_stat_functions import *
 
 ####### USER EDITS START HERE ########
 # Base_bath: This should be to the date-folder where the folders of videos are stored
-base_path = "F:/garden_eel_diel/09_06_25" 
+base_path = "/Volumes/eel_2/garden_eel_diel/29_05_2025" 
 
 # Adding site_id, which should be the Left and right video folder names. 
-siteID_L= "garden_eel_diel_100625_D2_cam1"
-siteID_R = "garden_eel_diel_100625_D2_cam2"
+siteID_L= "garden_eel_diel_29_05_25_F2-cam1-B9"
+siteID_R= "garden_eel_diel_29_05_25_F2-cam2-B9"
 
 # First video names, after the calibration videos have been removed 
-first_left_vid = "GH050128.MP4"
-first_right_vid = "GH059698.MP4"
+first_left_vid = "GH079670.MP4"
+first_right_vid = "GH079788.MP4"
 
 
 # The fps of extracted frames that will be run through SAM2, usually 3
@@ -84,7 +84,7 @@ print(f"Raw first left video moved to '{raw_dir_L}'.")
 
 # Specify file paths
 icl = siteID_L + "_video_info.csv"
-icr = siteID_R + "video_info.csv"
+icr = siteID_R + "_video_info.csv"
 info_csv_L = os.path.join(left_vids_folder, icl)
 info_csv_R = os.path.join(right_vids_folder, icr)
 out_csv_L = siteID_L + "_SAM2Frames.csv"
@@ -126,6 +126,17 @@ with open(info_csv_L, mode="w", newline="") as csvfile:
         total_frames = get_ffprobe_data(video_file, "stream=nb_frames")
         start_time = get_ffprobe_data(video_file, "format=start_time")
         duration = get_ffprobe_data(video_file, "format=duration")
+        frame_rate = "N/A"
+        end_time = "N/A"
+
+        invalid_vals = ("N/A", "", None, "nan", "NaN")
+
+
+        if start_time in invalid_vals or duration in invalid_vals:
+           print(f"Skipping file (missing metadata): {file_name}")
+           writer.writerow([file_name, file_path, frame_rate, total_frames, start_time, duration, "N/A"])
+           continue
+
         if frame_rate_fraction and "/" in frame_rate_fraction:
             numerator, denominator = map(int, frame_rate_fraction.split("/"))
             frame_rate = round(numerator / denominator, 3)
@@ -151,6 +162,15 @@ with open(info_csv_R, mode="w", newline="") as csvfile:
         total_frames = get_ffprobe_data(video_file, "stream=nb_frames")
         start_time = get_ffprobe_data(video_file, "format=start_time")
         duration = get_ffprobe_data(video_file, "format=duration")
+        frame_rate = "N/A"
+        end_time = "N/A"
+
+        invalid_vals = ("N/A", "", None, "nan", "NaN")
+        if start_time in invalid_vals or duration in invalid_vals:
+           print(f"Skipping file (missing metadata): {file_name}")
+           writer.writerow([file_name, file_path, frame_rate, total_frames, start_time, duration, "N/A"])
+           continue
+
         if frame_rate_fraction and "/" in frame_rate_fraction:
             numerator, denominator = map(int, frame_rate_fraction.split("/"))
             frame_rate = round(numerator / denominator, 3)
@@ -184,3 +204,5 @@ except OSError as e:
 
 print(f"The frame delay is {frame_delay}")
 print("Check frame delay is reasonable, and that videos actually look synced")
+
+

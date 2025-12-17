@@ -35,7 +35,7 @@ df %>%
   theme_minimal()+
   labs(title = "Nbinomial, emerge run lengths")
 
-results %>%
+df_long %>%
   ggplot(aes(x = variable, y = individual_ID, fill = factor(value))) +
   geom_tile() +
   scale_fill_manual(values = c("0" = "black", "1" = "white")) +

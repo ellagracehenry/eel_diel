@@ -11,11 +11,16 @@ library(MASS)
 #Functions
 source("scripts/ABM/R/fill_holes.R")
 source("scripts/ABM/R/isolate_perturbed_hides.R")
+source("scripts/ABM/R/exp_hazard_function.R")
+source("scripts/ABM/R/activation_function.R")
 
 #Submodels
 source("scripts/ABM/R/foraging_nonstatedependent.R")
 source("scripts/ABM/R/geometric_submodel.R")
 source("scripts/ABM/R/negativebinomial_submodel.R")
+source("scripts/ABM/R/SIR_hazard_submodel.R")
+
+######################
 
 #Loading in empirical data
 data <- read.csv(
@@ -23,8 +28,8 @@ data <- read.csv(
   header = FALSE
 )
 
+#data manipulation
 threshold = 5
-
 current_colnames_T <- colnames(data) #get colnames
 current_colnames_T[1] <- "individual_ID" #add individual_ID as colname
 colnames(data) <- current_colnames_T #re add columns to transitions
@@ -32,6 +37,7 @@ colnames(data)[2:ncol(data)] <- seq(1, ncol(data) - 1) #Add a number column name
 data[,-1] <- lapply(data[,-1], as.numeric) #Convert to numeric
 data[, 2:ncol(data)] <- t(apply(data[, 2:ncol(data)], 1, function(row) fill_holes(row, threshold))) # Apply the function to each row, starting from the 2nd column
 
+data <- data[1:3000]
 df_long <- melt(data, id.vars = "individual_ID")
 df_long$variable <- as.numeric(df_long$variable)
 
@@ -57,6 +63,12 @@ df_run_length_emerge <- df_run_length %>%
   filter(value == 1) #%>%
   #dplyr::pull(run_length)
 
+############# parameters ####################
+lambda_emerge <- 0.001
+lambda_hide <- 0.001
+
+
+#################################
 #non state dependent - parameterized by per cap proportion of time emerged 
 results <- non_state_dependent_submodel(data, 29184, avg_prop_up)
 
@@ -65,3 +77,7 @@ results <- geometric_submodel(data)
 results <- nbinomial_submodel(data)
 
 results <- SIR_submodel(data)
+
+results <- SIR_hazard_submodel(data, lambda_emerge, lambda_hide)
+
+results <- SIR_hazard_submodel(data, lambda_emerge, lambda_hide)
