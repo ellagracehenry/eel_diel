@@ -2,3 +2,14 @@
 .Rhistory
 .RData
 .Ruserdata
+
+# Ignore image files
+*.jpg
+*.jpeg
+*.png
+# Ignore videos
+*.mp4
+# Ignore CSV files
+*.csv
+# Ignore OS/system files 
+.DS_Store Thumbs.db
