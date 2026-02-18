@@ -15,21 +15,38 @@ combine_data_by_time <- function(transitions_path, metadata_path, threshold){
   
   for (i in seq_along(files)) {
     f <- files[i]
-    temp <- read.csv(f, header = FALSE) #read data
+    temp <- read.csv(f, header = TRUE, na.string = c("NaN","NA")) #read data
+    
+    if (temp[1,1]>1){
+      temp <- read.csv(f, header = FALSE, na.string = c("NaN","NA")) #read data
+    }
+    if (!is.na(temp[2,2]) && temp[2,2] > 1){
+      temp[,2] <- NULL
+    }
+    
     current_colnames_T <- colnames(temp) #get colnames
     current_colnames_T[1] <- "individual_ID" #add individual_ID as colname
     colnames(temp) <- current_colnames_T #re add columns to transitions
+    #temp$individual_ID <- as.character(temp$individual_ID)
     colnames(temp)[2:ncol(temp)] <- seq(1, ncol(temp) - 1) #Add a number column name
     temp[,-1] <- lapply(temp[,-1], as.numeric) #Convert to numeric
-    temp[, 2:ncol(temp)] <- t(apply(temp[, 2:ncol(temp)], 1, function(row) fill_holes(row, threshold))) # Apply the function to each row, starting from the 2nd column
+    temp[, 2:ncol(temp)] <- t(apply(
+      temp[, 2:ncol(temp)], 1, 
+      function(row) {
+        if (all(is.na(row))) {
+          return(rep(NaN, length(row)))
+        }
+        fill_holes(row, threshold) # Apply the function to each row, starting from the 2nd column
+      }
+    ))
     
-    temp_long <- melt(temp, id.vars = "individual_ID") #convert to long
+    temp_long <- reshape2::melt(temp, id.vars = "individual_ID") #convert to long
     temp_long$variable <- as.factor(temp_long$variable) #time as a factor
-    n_ind <- length(unique(temp_long$individual_ID)) #count up how many individuals
+    n_ind <- length(unique(temp_long$individual_ID)) #count up how many individuals COULD BE DOING WEIRD THINGS WITH NAN INDIVIDUALS
     
     temp_long_s <- temp_long %>% #summarise for p_emerged
       group_by(variable) %>%
-      reframe(prop_emerged = sum(value)/n_ind, n_emerged = sum(value))
+      reframe(prop_emerged = sum(value, na.rm = TRUE)/n_ind, n_emerged = sum(value, na.rm =TRUE))
     
     
     fname <- basename(f) #file name

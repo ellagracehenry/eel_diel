@@ -1,0 +1,597 @@
+#load in packages
+library(readxl)
+library(ggplot2)
+library(dplyr)
+library(lme4)
+library(tidyr)
+
+
+setwd("/Users/ellag/Library/CloudStorage/GoogleDrive-elhe2720@colorado.edu/Shared drives/Field Research Videos/Gil Lab/Curacao_2024/garden_eels/position_drop_experiment/")
+#load in data
+data <- read_excel("master_ball_drop_data_3D_0121.xlsx") %>%
+ filter(drop_ID != 152) %>%
+  filter (drop_ID != 169)
+
+data <- data %>%
+  mutate(binary_response = case_when(
+    full_partial_none == 2 ~ 1,
+    full_partial_none == 1 ~ 1,
+    full_partial_none == 0 ~ 0,
+    TRUE ~ NA_real_
+  ))
+
+
+#RESPONSE ~ DISTANCE TO BALL
+data$distance_to_ball <- sqrt((data$base_X - data$ball_hit_X)^2 + (data$base_Y - data$ball_hit_Y)^2 + (data$base_Z - data$ball_hit_Z)^2)
+
+#COLONY SIZE
+data$colony_size[data$colony == "S5"] <- 34
+data$colony_size[data$colony == "S9"] <- 59
+data$colony_size[data$colony == "S15"] <- 67
+data$colony_size[data$colony == "S12"] <- 47
+data$colony_size[data$colony == "S7"] <- 116
+
+#First Responder Figure
+First_Responder_Data <- data %>%
+  group_by(drop_ID) %>%
+  mutate(First_Responder = as.integer(!is.na(response_frame_cam1) & response_frame_cam1 == min(response_frame_cam1, na.rm = TRUE))) %>%ungroup()
+
+ggplot(First_Responder_Data, aes(x = distance_to_ball, y = First_Responder)) +
+  geom_jitter(height = 0.05, width = 0.05, alpha = 0.5) +  # Show individual points
+  stat_smooth(method = "glm", method.args = list(family = "binomial"), se = TRUE) +
+  labs(y = "Responder", x = "Distance to ball", title = "Probability of being first responder with distance to ball ") +
+  theme_classic()
+
+#Bubble map
+First_Responder_Data_Binned <- First_Responder_Data %>% 
+ ungroup() %>%
+ mutate(dist_bin = cut(distance_to_ball, breaks = 10)) %>%
+ count(dist_bin, First_Responder) %>% 
+  extract(dist_bin,
+          into = c("min","max"),
+          remove = FALSE,
+          regex = "(?:\\(|\\[)(.*),(.*)(?:\\)|\\])",
+          convert = TRUE) %>%
+  mutate(dist_bin_mean = (min + max)/2) %>%
+
+ggplot() +
+  geom_point(First_Responder_Data_Binned, aes(x = dist_bin_mean, y = First_Responder, size = n)) +  # Show individual points
+  stat_smooth(First_Responder_Data, aes(x = distance_to_ball, y = First_Responder), method = "glm", method.args = list(family = "binomial"), se = TRUE)) +
+  labs(y = "Responder", x = "Distance to ball", title = "Probability of being first responder with distance to ball ") +
+  theme_classic()
+
+ggplot() +
+  geom_point(
+    data = First_Responder_Data_Binned,
+    aes(x = dist_bin_mean, y = First_Responder, size = n)
+  ) +
+  stat_smooth(
+    data = First_Responder_Data,
+    aes(x = distance_to_ball, y = First_Responder),
+    method = "glm",
+    method.args = list(family = "binomial"),
+    se = TRUE
+  ) +
+  labs(
+    y = "Responder",
+    x = "Distance to ball",
+    title = "Probability of being first responder with distance to ball"
+  ) +
+  theme_classic()
+
+
+ggplot(First_Responder_Data_Binned, aes(x = dist_bin, y = First_Responder, size = n)) +
+  geom_point(alpha = 0.5) +  # Show individual points
+  stat_smooth(method = "glm", method.args = list(family = "binomial"), se = TRUE) +
+# scale_size(range = c(.1, 69) +
+  labs(y = "Responder", x = "Distance to ball", title = "Probability of being first responder with distance to ball ") +
+  theme_classic()
+
+
+
+#Secondary Response Figure
+
+Secondary_Responders <- filter(First_Responder_Data, First_Responder == 0)
+
+Secondary_Responders <- Secondary_Responders %>%
+  mutate(binary_response = case_when(
+    full_partial_none == 2 ~ 1,
+    full_partial_none == 1 ~ 1,
+    full_partial_none == 0 ~ 0,
+    TRUE ~ NA_real_
+  ))
+
+ggplot(Secondary_Responders, aes(x = distance_to_ball, y = binary_response)) +
+  geom_jitter(height = 0.05, width = 0.05, alpha = 0.5) +  # Show individual points
+  stat_smooth(method = "glm", method.args = list(family = "binomial"), se = TRUE) +
+  labs(y = "Responder", x = "Distance to ball", title = "Probability of being secondary responder with distance to ball ") +
+  theme_classic()
+
+
+#First Responder Figure with distance to ball and Colony Sizes
+
+data <- data %>%
+  group_by(drop_ID) %>%
+  mutate(inst_emerged = sum(!is.na(full_partial_none))) %>%
+  ungroup()
+
+
+
+low <- c(0,40)
+medium <- c(40,60)
+high <- c(60,120)
+
+data <- data %>%
+  mutate(bin_colony_size = case_when(
+    colony_size >= low[1] & colony_size <= low[2] ~ "low",
+    colony_size >= medium[1] & colony_size <= medium[2] ~ "medium",
+    colony_size >= high[1] & colony_size <= high[2] ~ "high",
+    TRUE ~ NA_character_))
+
+data$bin_colony_size <- factor(data$bin_colony_size, levels = c("low", "high"))
+
+First_Responder_Data <- data %>%
+  group_by(drop_ID) %>%
+  mutate(First_Responder = as.integer(!is.na(response_frame_cam1) & response_frame_cam1 == min(response_frame_cam1, na.rm = TRUE))) %>%
+  ungroup()
+
+ggplot(First_Responder_Data, aes(x = distance_to_ball, y = First_Responder, color = as.factor(colony_size), group = as.factor(colony_size))) +
+  geom_jitter(height = 0.05, width = 0.05, alpha = 0.5) +  # Show individual points
+  stat_smooth(method = "glm", method.args = list(family = "binomial"), se = TRUE) +
+  labs(y = "Responder", x = "Distance to ball", title = "Likelihood of being first responder with distance to ball and colony size") +
+  theme_classic()
+
+First_Responder_Data_Binned_Colony_Size <- First_Responder_Data %>%
+  ungroup() %>%
+  filter(!is.na(distance_to_ball)) %>%
+  mutate(dist_bin = cut(distance_to_ball, breaks = 10)) %>%
+  count(dist_bin, First_Responder, colony_size) %>%
+  extract(dist_bin,
+          into = c("min","max"),
+          remove = FALSE,
+          regex = "(?:\\(|\\[)(.*),(.*)(?:\\)|\\])",
+          convert = TRUE) %>%
+  mutate(dist_bin_mean = (min + max)/2)
+
+First_Responder_Data_Binned_Colony_Size <- First_Responder_Data_Binned_Colony_Size %>%
+  mutate(
+    y_offset = case_when(
+      colony_size == "34" ~ -0.05,
+      colony_size == "47" ~ 0,
+      colony_size == "59" ~ 0.05,
+      colony_size == "67" ~ 0.1,
+    ),
+    y_jittered = First_Responder + y_offset
+  )
+
+ggplot() +
+  geom_point(data = First_Responder_Data_Binned_Colony_Size, aes(x = dist_bin_mean, y = y_jittered, size = n, color = as.factor(colony_size)), alpha = 0.5) +  # Show individual points
+  stat_smooth(data = First_Responder_Data, aes(x = distance_to_ball, y = First_Responder, color = as.factor(colony_size)), method = "glm", method.args = list(family = "binomial"), se = TRUE) +
+  scale_size_continuous(
+    name = "Count",        # label for legend
+    range = c(1, 10),       # min and max point sizes
+    breaks = pretty(First_Responder_Data_Binned_Colony_Size$n) # ensures legend uses actual counts
+  ) +
+  labs(y = "Responder", x = "Distance to ball", title = "Likelihood of being first responder with distance to ball and colony size") +
+  theme_classic()
+
+data <- data %>%
+  group_by(drop_ID) %>%
+  mutate(inst_emerged = sum(!is.na(full_partial_none)), colony_size = n()) %>%
+  ungroup()
+
+#Second Responder Figure with distance to ball and colony size
+
+Secondary_Responders <- filter(First_Responder_Data, First_Responder == 0)
+
+Secondary_Responders <- Secondary_Responders %>%
+  mutate(binary_response = case_when(
+    full_partial_none == 2 ~ 1,
+    full_partial_none == 1 ~ 1,
+    full_partial_none == 0 ~ 0,
+    TRUE ~ NA_real_
+  ))
+
+
+low <- c(0,43)
+medium <- c(44,55)
+high <- c(56,67)
+
+Secondary_Responders <- Secondary_Responders %>%
+  mutate(bin_colony_size = case_when(
+    colony_size >= low[1] & colony_size <= low[2] ~ "low",
+    colony_size >= medium[1] & colony_size <= medium[2] ~ "medium",
+    colony_size >= high[1] & colony_size <= high[2] ~ "high",
+    TRUE ~ NA_character_))
+
+Secondary_Responders$bin_colony_size <- factor(data$bin_colony_size, levels = c("low", "medium", "high"))
+
+ggplot(Secondary_Responders, aes(x = distance_to_ball, y = binary_response, color = as.factor(colony_size), group = as.factor(colony_size))) +
+  geom_jitter(height = 0.05, width = 0.05, alpha = 0.5) +  # Show individual points
+  stat_smooth(method = "glm", method.args = list(family = "binomial"), se = TRUE) +
+  labs(y = "Responder", x = "Distance to ball", title = "Likelihood of being secondary responder with distance to ball ") +
+  theme_classic()
+
+
+#Likelihood of First Responder Figure Inst. Emerged
+
+low1 <- c(1,22)
+medium1 <- c(23,44)
+high1 <- c(45,67)
+
+data <- data %>%
+  mutate(bin_inst_emerged = case_when(
+    inst_emerged >= low1[1] & inst_emerged <= low1[2] ~ "low",
+    inst_emerged >= medium1[1] & inst_emerged <= medium1[2] ~ "medium",
+    inst_emerged >= high1[1] & inst_emerged <= high1[2] ~ "high",
+    TRUE ~ NA_character_))
+
+data$bin_inst_emerged <- factor(data$bin_inst_emerged, levels = c("low", "medium", "high"))
+
+First_Responder_Data <- data %>%
+  group_by(drop_ID) %>%
+  mutate(First_Responder = as.integer(!is.na(response_frame_cam1) & response_frame_cam1 == min(response_frame_cam1, na.rm = TRUE))) 
+%>%ungroup()
+
+ggplot(First_Responder_Data, aes(x = distance_to_ball, y = First_Responder, color = bin_inst_emerged, group = bin_inst_emerged)) +
+  geom_jitter(height = 0.05, width = 0.05, alpha = 0.5) +  # Show individual points
+  stat_smooth(method = "glm", method.args = list(family = "binomial"), se = TRUE) +
+  labs(y = "Responder", x = "Distance to ball", title = "Likelihood of being first responder with distance to ball and Inst. emerged") +
+  theme_classic()
+
+#Likelihood of Secondary Responder Figure Inst. Emerged
+
+Secondary_Responders <- filter(First_Responder_Data, First_Responder == 0)
+
+Secondary_Responders <- Secondary_Responders %>%
+  mutate(binary_response = case_when(
+    full_partial_none == 2 ~ 1,
+    full_partial_none == 1 ~ 1,
+    full_partial_none == 0 ~ 0,
+    TRUE ~ NA_real_
+  ))
+
+low <- c(1,22)
+medium <- c(23,44)
+high <- c(45,67)
+
+Secondary_Responders <- Secondary_Responders %>%
+  mutate(bin_inst_emerged = case_when(
+    colony_size >= low[1] & colony_size <= low[2] ~ "low",
+    colony_size >= medium[1] & colony_size <= medium[2] ~ "medium",
+    colony_size >= high[1] & colony_size <= high[2] ~ "high",
+    TRUE ~ NA_character_))
+
+Secondary_Responders$bin_inst_emerged <- factor(data$bin_colony_size, levels = c("low", "medium", "high"))
+
+ggplot(Secondary_Responders, aes(x = distance_to_ball, y = binary_response, color = bin_colony_size, group = bin_colony_size)) +
+  geom_jitter(height = 0.05, width = 0.05, alpha = 0.5) +  # Show individual points
+  stat_smooth(method = "glm", method.args = list(family = "binomial"), se = TRUE) +
+  labs(y = "Responder", x = "Distance to ball", title = "Likelihood of being secondary responder with distance to ball and Inst. Emerged ") +
+  theme_classic()
+
+
+#Histogram of distance to ball First Responders
+
+Single_First_Responder <- filter(First_Responder_Data, First_Responder == 1)
+
+    #mean_value <- mean(Single_First_Responder$distance_to_ball, na.rm = TRUE)
+
+Mean_Single_First_Responder1 <- Single_First_Responder %>%
+  group_by(bin_colony_size) %>%
+  summarise(Mean_distance = mean(distance_to_ball, na.rm = TRUE))
+
+ggplot() +
+  geom_histogram(data = Single_First_Responder, aes(x=distance_to_ball), binwidth = 0.5) +
+  labs(x = "Distance to Ball", y = "Frequency", title = "First Responder Distance to Ball with Colony Sizes ") +
+  geom_vline(data = Mean_Single_First_Responder1, mapping = aes(xintercept = Mean_distance)) +
+facet_wrap(~bin_colony_size)
+
+ 
+  # scale_fill_manual(values = c("low" = "red", "medium" = "blue", "high" = "green"))
+
+#Histogram of Inst. Emerged First Responders
+
+Mean_Single_First_Responder2 <- Single_First_Responder %>%
+  group_by(bin_inst_emerged) %>%
+  summarise(Mean_distance = mean(distance_to_ball, na.rm = TRUE))
+
+ggplot(Single_First_Responder, aes(x=distance_to_ball), fill = category) + geom_histogram(bins = 5) +
+  labs(y = "Distance to Ball", x = "Frequency", title = "First Responder Distance to Ball with Inst. Emerged") +
+  geom_vline(data = Mean_Single_First_Responder2, mapping = aes(xintercept = Mean_distance)) +
+  facet_wrap(~bin_inst_emerged)
+  
+#Histogram of distance to ball Secondary Responders
+
+Single_First_Responder <- filter(First_Responder_Data, First_Responder == 1)
+
+#mean_value <- mean(Single_First_Responder$distance_to_ball, na.rm = TRUE)
+
+Mean_Secondary_Responders1 <- Secondary_Responders %>%
+  group_by(bin_colony_size) %>%
+  summarise(Mean_distance = mean(distance_to_ball, na.rm = TRUE))
+
+ggplot() +
+  geom_histogram(data = Secondary_Responders, aes(x=distance_to_ball), binwidth = 0.5) +
+  labs(x = "Distance to Ball", y = "Frequency", title = "Secondary Responders Distance to Ball with Colony Sizes ") +
+  geom_vline(data = Mean_Secondary_Responders1, mapping = aes(xintercept = Mean_distance)) +
+  facet_wrap(~bin_colony_size)
+
+#Histogram of Inst. Emerged Secondary Responders
+
+Mean_Secondary_Responders2 <- Secondary_Responders %>%
+  group_by(bin_inst_emerged) %>%
+  summarise(Mean_distance = mean(distance_to_ball, na.rm = TRUE))
+
+ggplot() +
+  geom_histogram(data = Secondary_Responders, aes(x=distance_to_ball), binwidth = 0.5) +
+  labs(x = "Distance to Ball", y = "Frequency", title = "Secondary Responders Distance to Ball with Inst. Emerged") +
+  geom_vline(data = Mean_Secondary_Responders2, mapping = aes(xintercept = Mean_distance)) +
+  facet_wrap(~bin_inst_emerged)
+
+
+#Overlay histograms
+
+Combined_Responders <- bind_rows("First Responders" = Single_First_Responder, "Secondary Responders" = Secondary_Responders, .id = "Source")
+
+Combo <- c(First_Responder_Data="red", Secondary_Responders="green")
+
+ggplot() +
+  geom_histogram(data = Combined_Responders, aes(x=distance_to_ball), binwidth = 0.5) +
+  labs(x = "Distance to Ball", y = "Frequency", title = "Combined Responders Distance to Ball with Colony Sizes ") +
+  geom_vline(data = Mean_Secondary_Responders, mapping = aes(xintercept = Mean_distance)) +
+  facet_wrap(~bin_colony_size)
+
+##Histogram of distance to ball Second Responders
+
+Single_First_Responder <- filter(First_Responder_Data, First_Responder == 1)
+
+#mean_value <- mean(Single_First_Responder$distance_to_ball, na.rm = TRUE)
+
+Mean_Secondary_Responders <- Secondary_Responders %>%
+  group_by(bin_colony_size) %>%
+  summarise(Mean_distance = mean(distance_to_ball, na.rm = TRUE))
+
+ggplot() +
+  geom_histogram(data = Secondary_Responders, aes(x=distance_to_ball), binwidth = 0.5) +
+  labs(x = "Distance to Ball", y = "Frequency", title = "Secondary Responder Distance to Ball with Colony Sizes") +
+  geom_vline(data = Mean_Single_First_Responder, mapping = aes(xintercept = Mean_distance)) +
+  facet_wrap(~bin_colony_size)
+
+#Histogram of Time Lag
+
+data <- data %>%
+  group_by(drop_ID) %>%
+  mutate(response_lag_to_first = if (all(is.na(response_frame_cam1))) {
+    NA_real_
+  } else {
+    response_frame_cam1 - min(response_frame_cam1, na.rm = TRUE)
+  }) %>%
+  ungroup()
+
+data <- data %>%
+  group_by(drop_ID) %>%
+  mutate(response_lag_to_ball = if (all(is.na(response_frame_cam1))) {
+    NA_real_
+  } else {
+    response_frame_cam1 - min(ball_hit_frame_cam1, na.rm = TRUE)
+  }) %>%
+  ungroup()
+
+data_processed <- data %>%
+  group_by(drop_ID) %>%
+  # Identify first responder per drop (if any)
+  mutate(
+    first_index = if (any(full_partial_none != 0 & !is.na(full_partial_none)))
+      which.min(ifelse(full_partial_none != 0 & !is.na(full_partial_none),
+                       response_frame_cam1, Inf))
+    else NA_integer_
+  ) %>%
+  # Grab first responder's coordinates (NA if none)
+  mutate(
+    first_x = base_X[first_index],
+    first_y = base_Y[first_index],
+    first_z = base_Z[first_index],
+    # Compute distance only for responders
+    dist_from_first_resp = ifelse(
+      full_partial_none != 0 & !is.na(full_partial_none),
+      sqrt((base_X - first_x)^2 + (base_Y - first_y)^2 + (base_Z - first_z)^2),
+      NA_real_
+    )
+  ) %>%
+  ungroup()
+
+#Histogram of response lags + bin colony size
+data_processed %>%
+  filter(full_partial_none == 2) %>%
+  ggplot(aes(x=response_lag_to_first)) +
+  geom_histogram(binwidth = 10, fill = "steelblue", color = "white", alpha = 0.8) +
+  labs(
+    x = "Response Lag",
+    y = "Frequency"
+  ) +
+  facet_wrap(~bin_colony_size) +
+  theme_minimal()
+#Add mean line
+#Fix bin sizes
+#Add title
+
+#Histogram of response lags + bin inst. emerged
+data_processed %>%
+  filter(full_partial_none == 2) %>%
+  ggplot(aes(x=response_lag_to_first)) +
+  geom_histogram(binwidth = 10, fill = "steelblue", color = "white", alpha = 0.8) +
+  labs(
+    x = "Response Lag",
+    y = "Frequency"
+  ) +
+  facet_wrap(~bin_inst_emerged) +
+  theme_minimal()
+#Add mean line
+#Fix bin sizes
+#Add title
+
+#Histogram of response lags to ball + bin colony size
+data_processed %>%
+  filter(full_partial_none == 2) %>%
+  ggplot(aes(x=response_lag_to_ball)) +
+  geom_histogram(binwidth = 10, fill = "steelblue", color = "white", alpha = 0.8) +
+  labs(
+    x = "Response Lag",
+    y = "Frequency"
+  ) +
+  facet_wrap(~bin_colony_size) +
+  theme_minimal()
+#Add mean line
+#Fix bin sizes
+#Add title
+
+#Histogram of response lags to ball + bin inst. emerged
+data_processed %>%
+  filter(full_partial_none == 2) %>%
+  ggplot(aes(x=response_lag_to_ball)) +
+  geom_histogram(binwidth = 10, fill = "steelblue", color = "white", alpha = 0.8) +
+  labs(
+    x = "Response Lag",
+    y = "Frequency"
+  ) +
+  facet_wrap(~bin_inst_emerged) +
+  theme_minimal()
+#Add mean line
+#Fix bin sizes
+#Add title
+
+#Distance from ball
+data_processed %>%
+  filter(is.na(response_lag_to_ball) == FALSE) %>%
+  filter(full_partial_none != 0) %>%
+  ggplot(aes(x = distance_to_ball, y = response_lag_to_ball, color = colony)) + #CHANGE THIS FROM DISTANCE_TO_BALL TO DISTANCE_FROM_FIRST_RESP
+  geom_point(alpha = 0.8) +
+  stat_smooth(method = "lm", se = TRUE)+
+  facet_wrap(~colony) +
+  theme_minimal()
+
+#Distance from first responders 
+data_processed %>%
+  filter(is.na(response_lag_to_first) == FALSE) %>%
+  filter(full_partial_none != 0) %>%
+  ggplot(aes(x = dist_from_first_resp, y = response_lag_to_first, color = colony)) + #CHANGE THIS FROM DISTANCE_TO_BALL TO DISTANCE_FROM_FIRST_RESP
+  geom_point(alpha = 0.8) +
+  stat_smooth(method = "lm", se = TRUE)+
+  facet_wrap(~colony) +
+  theme_minimal()
+
+#Histogram of Cascade Extent + Size
+
+cascade_summary <- data %>%
+  group_by(drop_ID) %>%
+  mutate(is_responder = full_partial_none == 2) %>%
+  summarise(
+    cascade_size = sum(is_responder, na.rm = TRUE),
+    
+    ## ---- First responder (earliest non-NA response) ----
+    first_x = {
+      idx <- is_responder & !is.na(response_frame_cam1)
+      if (!any(idx)) NA_real_
+      else base_X[idx][which.min(response_frame_cam1[idx])]
+    },
+    
+    first_y = {
+      idx <- is_responder & !is.na(response_frame_cam1)
+      if (!any(idx)) NA_real_
+      else base_Y[idx][which.min(response_frame_cam1[idx])]
+    },
+    
+    first_z = {
+      idx <- is_responder & !is.na(response_frame_cam1)
+      if (!any(idx)) NA_real_
+      else base_Z[idx][which.min(response_frame_cam1[idx])]
+    },
+    
+    ## ---- Furthest responder from first responder ----
+    social_cascade_extent =
+      if (!is.na(first_x))
+        max(
+          sqrt(
+            (base_X[is_responder] - first_x)^2 +
+              (base_Y[is_responder] - first_y)^2 +
+              (base_Z[is_responder] - first_z)^2
+          ),
+          na.rm = TRUE
+        )
+    else NA_real_,
+    
+    ## ---- Furthest responder from ball ----
+    furthest_from_ball =
+      if (!is.na(first_x))
+        max(
+          sqrt(
+            (base_X[is_responder] - first(ball_hit_X))^2 +
+              (base_Y[is_responder] - first(ball_hit_Y))^2 +
+              (base_Z[is_responder] - first(ball_hit_Z))^2
+          ),
+          na.rm = TRUE
+        )
+    else NA_real_,
+    
+    ## ---- Max possible extent (all eels) ----
+    max_possible_extent =
+      if (!is.na(first_x))
+        max(
+          sqrt(
+            (base_X - first_x)^2 +
+              (base_Y - first_y)^2 +
+              (base_Z - first_z)^2
+          ),
+          na.rm = TRUE
+        )
+    else NA_real_,
+    
+    ## ---- Normalised metrics ----
+    social_cascade_extent_norm =
+      if (!is.na(max_possible_extent) && max_possible_extent > 0)
+        social_cascade_extent / max_possible_extent
+    else NA_real_,
+    
+    furthest_from_ball_norm =
+      if (!is.na(max_possible_extent) && max_possible_extent > 0)
+        furthest_from_ball / max_possible_extent
+    else NA_real_
+  )
+
+
+data <- data %>%
+  left_join(cascade_summary, by = "drop_ID")
+
+data %>%
+  distinct(
+    drop_ID,
+    inst_emerged,
+    social_cascade_extent,
+    furthest_from_ball,
+    social_cascade_extent_norm,
+    furthest_from_ball_norm,
+    colony,
+    trial_ID,
+    cascade_size
+  ) %>%
+  ggplot(aes(
+    x = inst_emerged,
+  #  y = cascade_size/inst_emerged, 
+#  y = social_cascade_extent_norm,
+y = furthest_from_ball_norm,
+    color = colony
+  )) +
+  geom_point() +
+  labs(
+    x = "Number of eels emerged before drop",
+    y = "Normalised max distance from ball"
+  ) +
+  facet_wrap(~ colony) +
+  theme_minimal()
+
+data138 <- filter(data, drop_ID == 138)
+
+#Models
+ModelResponseLikelihood <- glmer(binary_response~colony_size+inst_emerged+distance_to_ball+(1|trial_ID)+(1|colony)+(1|drop_ID)+(1|eel_ID), data = data, family = binomial(link = "logit"))
+summary(ModelResponseLikelihood)

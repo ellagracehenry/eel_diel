@@ -64,8 +64,8 @@ df_run_length_emerge <- df_run_length %>%
   #dplyr::pull(run_length)
 
 ############# parameters ####################
-lambda_emerge <- 0.001
-lambda_hide <- 0.001
+lambda_emerge <- 0.0001
+lambda_hide <- 0.0001
 
 
 #################################
@@ -77,7 +77,5 @@ results <- geometric_submodel(data)
 results <- nbinomial_submodel(data)
 
 results <- SIR_submodel(data)
-
-results <- SIR_hazard_submodel(data, lambda_emerge, lambda_hide)
 
 results <- SIR_hazard_submodel(data, lambda_emerge, lambda_hide)

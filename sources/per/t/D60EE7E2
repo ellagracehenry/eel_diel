@@ -1,0 +1,27 @@
+{
+    "id": "D60EE7E2",
+    "path": "~/Desktop/PhD/academic_projects/eel_diel/scripts/ABM/R/activation_function.R",
+    "project_path": null,
+    "type": "r_source",
+    "hash": "3480654330",
+    "contents": "",
+    "dirty": false,
+    "created": 1768048374073.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "35,2",
+        "scrollLine": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1768059403,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1768059403888,
+    "read_only": false,
+    "read_only_alternatives": []
+}

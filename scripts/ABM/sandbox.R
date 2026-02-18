@@ -2,6 +2,8 @@
 #Histogram of run lengths
 results_run_length <- results %>%
   group_by(individual_ID) %>%
+  summarise()
+
   arrange(variable, .by_group = TRUE) %>%
   reframe({
     r <- rle(value)
@@ -35,7 +37,7 @@ df %>%
   theme_minimal()+
   labs(title = "Nbinomial, emerge run lengths")
 
-df_long %>%
+results %>%
   ggplot(aes(x = variable, y = individual_ID, fill = factor(value))) +
   geom_tile() +
   scale_fill_manual(values = c("0" = "black", "1" = "white")) +

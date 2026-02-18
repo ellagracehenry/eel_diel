@@ -1,14 +1,16 @@
 
 persistence_prob <- function(each_ind_each_sec_df) {
 ##### PREPARE 10-SECOND BINS #####
-each_ind_each_sec_df <- each_ind_each_sec_df %>%
+each_ind_each_sec_df_f <- each_ind_each_sec_df %>%
+  group_by(date_f) %>%
+  filter(n_distinct(site) > 1) %>% #must have more than 1 site on a day
   mutate(time_bin = floor(sec_since_midnight / 10))
 
 ##### HIDDEN → HIDDEN #####
-hidden_data <- subset(each_ind_each_sec_df, value == 0)
+hidden_data <- subset(each_ind_each_sec_df_f, value == 0)
 
 hidden_agg <- hidden_data %>%
-  group_by(date, site, colony, individual_ID, time_bin) %>%
+  group_by(date_f, site, colony, individual_ID, time_bin) %>%
   summarise(
     current_state = first(value, default = 0),
     stay_hidden   = as.numeric(current_state == last(next_state, default = 0)),
@@ -18,10 +20,10 @@ hidden_agg <- hidden_data %>%
   )
 
 ##### EMERGED → EMERGED #####
-emerged_data <- subset(each_ind_each_sec_df, value == 1)
+emerged_data <- subset(each_ind_each_sec_df_f, value == 1)
 
 emerged_agg <- emerged_data %>%
-  group_by(date, site, colony, individual_ID, time_bin) %>%
+  group_by(date_f, site, colony, individual_ID, time_bin) %>%
   summarise(
     current_state = first(value, default = 1),
     stay_emerged  = as.numeric(current_state == last(next_state, default = 1)),
@@ -31,8 +33,8 @@ emerged_agg <- emerged_data %>%
   )
 
 ##### SCALE #####
-n_emerged_mean <- mean(each_ind_each_sec_df$n_emerged)
-n_emerged_sd   <- sd(each_ind_each_sec_df$n_emerged)
+n_emerged_mean <- mean(each_ind_each_sec_df_f$n_emerged)
+n_emerged_sd   <- sd(each_ind_each_sec_df_f$n_emerged)
 
 hidden_agg <- hidden_agg %>%
   mutate(n_emerged_s = (n_emerged - n_emerged_mean) / n_emerged_sd,
@@ -44,17 +46,17 @@ emerged_agg <- emerged_agg %>%
 
 ##### MODEL #####
 hidden_model <- glmmTMB(
-  stay_hidden ~ time_bin_s + n_emerged_s + (1|site/colony/individual_ID) + (1|date),
+  stay_hidden ~ time_bin_s + n_emerged_s + site + (1|colony:individual_ID) + (1|date_f),
   data = hidden_agg, family = binomial
 )
 
 emerged_model <- glmmTMB(
-  stay_emerged ~ time_bin_s + n_emerged_s + (1|site/colony/individual_ID) + (1|date),
+  stay_emerged ~ time_bin_s + n_emerged_s + site + (1|colony:individual_ID) + (1|date_f),
   data = emerged_agg, family = binomial
 )
 
 ##### PREDICTIONS #####
-full_n_emerged <- 0:max(each_ind_each_sec_df$n_emerged)
+full_n_emerged <- 0:max(each_ind_each_sec_df_f$n_emerged)
 n_emerged_s_full <- (full_n_emerged - n_emerged_mean) / n_emerged_sd
 pred_df <- data.frame(n_emerged_s = n_emerged_s_full,
                       time_bin_s = mean(hidden_agg$time_bin_s))

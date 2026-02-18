@@ -1,0 +1,27 @@
+{
+    "id": "EE202590",
+    "path": "~/Desktop/PhD/academic_projects/eel_diel/scripts/cross-corr_analysis/R/each_ind_each_sec.R",
+    "project_path": null,
+    "type": "r_source",
+    "hash": "3223823132",
+    "contents": "",
+    "dirty": true,
+    "created": 1769642500660.0,
+    "source_on_save": false,
+    "relative_order": 12,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "9,38",
+        "scrollLine": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1769645383,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1770247948209,
+    "read_only": false,
+    "read_only_alternatives": []
+}

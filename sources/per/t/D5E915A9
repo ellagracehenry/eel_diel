@@ -1,0 +1,26 @@
+{
+    "id": "D5E915A9",
+    "path": "~/Desktop/PhD/academic_projects/eel_diel/scripts/ABM/ABM_eel_dump.R",
+    "project_path": null,
+    "type": "r_source",
+    "hash": "2068647231",
+    "contents": "",
+    "dirty": false,
+    "created": 1763437061204.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "248,0",
+        "scrollLine": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1764395556,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1764395556,
+    "read_only": false,
+    "read_only_alternatives": []
+}
