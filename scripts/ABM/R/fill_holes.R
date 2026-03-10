@@ -7,6 +7,9 @@ fill_holes <- function(vec, threshold) {
   small_runs <- which(lengths < threshold)
   
   for (i in small_runs) {
+    
+    if (is.na(values[i])) next
+    
     if (i > 1 && i < length(values)) {
       values[i] <- values[i-1]
     }

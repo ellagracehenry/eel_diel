@@ -14,7 +14,7 @@ combine_data_by_time <- function(transitions_path, metadata_path, threshold){
   out_list <- vector("list", length(files))
   
   for (i in seq_along(files)) {
-    f <- files[i]
+    f <- files[19]
     temp <- read.csv(f, header = TRUE, na.string = c("NaN","NA")) #read data
     
     if (temp[1,1]>1){
@@ -87,6 +87,17 @@ combine_data_by_time <- function(transitions_path, metadata_path, threshold){
   
   # combine everything
   combined_data <- dplyr::bind_rows(out_list)
+  
+  combined_data$colony_size[combined_data$colony == "D2"] <- 29
+  combined_data$colony_size[combined_data$colony == "D4"] <- 94
+  combined_data$colony_size[combined_data$colony == "L1"] <- 28
+  combined_data$colony_size[combined_data$colony == "L4"] <- 116
+  combined_data$colony_size[combined_data$colony == "F1"] <- 60
+  combined_data$colony_size[combined_data$colony == "F2"] <- 5
+  
+  combined_data$time_of_day <- as.POSIXct(combined_data$sec_since_midnight,
+                                       origin = "1970-01-01",
+                                       tz = "UTC")
   
   return(combined_data)
   

@@ -15,7 +15,15 @@ each_ind_each_sec <- function(transitions_path, metadata_path, threshold){
   
   for (i in seq_along(files)) {
     f <- files[i]
-    temp <- read.csv(f, header = FALSE) #read data
+    temp <- read.csv(f, header = TRUE, na.string = c("NaN","NA")) #read data
+    
+    if (temp[1,1]>1){
+      temp <- read.csv(f, header = FALSE, na.string = c("NaN","NA")) #read data
+    }
+    if (!is.na(temp[2,2]) && temp[2,2] > 1){
+      temp[,2] <- NULL
+    }
+    
     current_colnames_T <- colnames(temp) #get colnames
     current_colnames_T[1] <- "individual_ID" #add individual_ID as colname
     colnames(temp) <- current_colnames_T #re add columns to transitions
@@ -24,7 +32,6 @@ each_ind_each_sec <- function(transitions_path, metadata_path, threshold){
     temp[, 2:ncol(temp)] <- t(apply(temp[, 2:ncol(temp)], 1, function(row) fill_holes(row, threshold))) # Apply the function to each row, starting from the 2nd column
     
     temp_long <- reshape2::melt(temp, id.vars = "individual_ID") #convert to long
-    
     
     fname <- basename(f) #file name
     colony <- sub("^transitions_([^_]+)_.*$", "\\1", fname) #extract colony
@@ -87,6 +94,18 @@ each_ind_each_sec <- function(transitions_path, metadata_path, threshold){
   # combine everything
   combined_data <- dplyr::bind_rows(out_list)
   
+  combined_data$individual_ID <- as.factor(combined_data$individual_ID)
+  combined_data$colony <- as.factor(combined_data$colony)
+  combined_data$site <- as.factor(combined_data$site)
+  combined_data$site <- as.factor(combined_data$site)
+  combined_data$date_f <- as.factor(combined_data$date)
+  
+  combined_data$colony_size[combined_data$colony == "D2"] <- 29
+  combined_data$colony_size[combined_data$colony == "D4"] <- 94
+  combined_data$colony_size[combined_data$colony == "L1"] <- 28
+  combined_data$colony_size[combined_data$colony == "L4"] <- 116
+  combined_data$colony_size[combined_data$colony == "F1"] <- 60
+  combined_data$colony_size[combined_data$colony == "F2"] <- 5
   
   return(combined_data)
   

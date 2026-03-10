@@ -14,6 +14,7 @@ library(ggeffects)
 library(stringr)
 library(plotly)
 library(poibin)
+library(broom)
 
 #Functions
 source("scripts/cross-corr_analysis/R/combine_data_by_time.R")
@@ -22,57 +23,34 @@ source("scripts/cross-corr_analysis/R/each_ind_each_sec.R")
 source("scripts/cross-corr_analysis/R/group_synchrony.R")
 source("scripts/cross-corr_analysis/R/pairwise_synchrony.R")
 source("scripts/cross-corr_analysis/R/topology.R")
+source("scripts/cross-corr_analysis/R/calculate_pairwise_distances.R")
 source("scripts/cross-corr_analysis/R/figures/persistence_prob_mem_save.R")
+source("scripts/cross-corr_analysis/R/calculate_edge_proximity.R")
 source("scripts/ABM/R/fill_holes.R")
+source("scripts/ABM/R/fill_holes_NaNsafe.R")
 
 #Initialise
-threshold = 5
+threshold = 3
 transitions_path = "/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/transitions/updated"
 metadata_path = "/Users/ellag/Library/CloudStorage/GoogleDrive-elhe2720@colorado.edu/My Drive/Colorado/PhD/PROJECTS/diel_cycle_garden_eel/diel_eel_processing.xlsx"
-
 
 ### DATA WRANGLING ### 
 
 #A - Summarise data by time
 by_time_df <- combine_data_by_time(transitions_path, metadata_path, threshold)
 
-by_time_df$colony_size[by_time_df$colony == "D2"] <- 29
-by_time_df$colony_size[by_time_df$colony == "D4"] <- 94
-by_time_df$colony_size[by_time_df$colony == "L1"] <- 28
-by_time_df$colony_size[by_time_df$colony == "L4"] <- 116
-by_time_df$colony_size[by_time_df$colony == "F1"] <- 60
-by_time_df$colony_size[by_time_df$colony == "F2"] <- 5
-
-by_time_df$time_of_day <- as.POSIXct(by_time_df$sec_since_midnight,
-                             origin = "1970-01-01",
-                             tz = "UTC")
-
 #B - Summarise data by individual
 by_ind_df <- combine_data_by_individual(transitions_path, metadata_path, threshold)
 
-by_ind_df$colony_size[by_ind_df$colony == "D2"] <- 29
-by_ind_df$colony_size[by_ind_df$colony == "D4"] <- 94
+by_ind_df$colony_size[by_ind_df$colony == "D1"] <- 29
+by_ind_df$colony_size[by_ind_df$colony == "D2"] <- 94
 by_ind_df$colony_size[by_ind_df$colony == "L1"] <- 28
-by_ind_df$colony_size[by_ind_df$colony == "L4"] <- 116
+by_ind_df$colony_size[by_ind_df$colony == "L2"] <- 116
 by_ind_df$colony_size[by_ind_df$colony == "F1"] <- 60
 by_ind_df$colony_size[by_ind_df$colony == "F2"] <- 5
 
-
 #C - Each individual, each second
 each_ind_each_sec_df <- each_ind_each_sec(transitions_path, metadata_path, threshold)
-
-each_ind_each_sec_df$individual_ID <- as.factor(each_ind_each_sec_df$individual_ID)
-each_ind_each_sec_df$colony <- as.factor(each_ind_each_sec_df$colony)
-each_ind_each_sec_df$site <- as.factor(each_ind_each_sec_df$site)
-each_ind_each_sec_df$site <- as.factor(each_ind_each_sec_df$site)
-each_ind_each_sec_df$date_f <- as.factor(each_ind_each_sec_df$date)
-
-each_ind_each_sec_df$colony_size[each_ind_each_sec_df$colony == "D2"] <- 29
-each_ind_each_sec_df$colony_size[each_ind_each_sec_df$colony == "D4"] <- 94
-each_ind_each_sec_df$colony_size[each_ind_each_sec_df$colony == "L1"] <- 28
-each_ind_each_sec_df$colony_size[each_ind_each_sec_df$colony == "L4"] <- 116
-each_ind_each_sec_df$colony_size[each_ind_each_sec_df$colony == "F1"] <- 60
-each_ind_each_sec_df$colony_size[each_ind_each_sec_df$colony == "F2"] <- 5
 
 #D - Group-level synchrony
 group_sync_df <- group_synchrony(transitions_path, metadata_path, threshold)
@@ -137,47 +115,78 @@ ggsave('~/Desktop/PhD/academic_projects/eel_diel/presentations/benthics_25/figur
 ##### 2 - PLOTTING P_EMERGED PER COLONY #####
 #Means 
 feeding_big_small_colony <- by_ind_df %>%
-  filter(prop_time_emerged >0) %>%
+  filter(prop_time_emerged >0.1) %>%
   group_by(date,site) %>%
-  mutate(bin_size = if_else(colony_size == min(colony_size), "small","large")) %>%
+  mutate(bin_size = if_else(colony_size == min(colony_size), "Small","Big")) %>%
   ungroup() %>%
   group_by(date,site) %>%
-  mutate(n_pairs = n_distinct(bin_size), bin_size = factor(bin_size, levels = c("small", "large"))) %>%
+  mutate(n_pairs = n_distinct(bin_size), bin_size = factor(bin_size, levels = c("Small", "Big"))) %>%
   ungroup() %>%
-  filter(n_pairs > 1) %>%
+  #filter(n_pairs > 1) %>%
   ggplot(aes(x = bin_size, y = prop_time_emerged, group = interaction(site,date), color = site)) +
-  stat_summary(fun = "mean", geom = "line", size = 1) +
-  stat_summary(fun = "mean", geom = "point", size = 2.5) +
+  stat_summary(fun = function(x) mean(x, na.rm = TRUE), geom = "line", size = 1.5) +
+  stat_summary(fun = function(x) mean(x, na.rm = TRUE), geom = "point", size = 4, alpha = 0.3) +
+  #stat_summary(fun.data = mean_cl_normal, geom = "ribbon", alpha = 0.2, aes(fill = site), color = NA)+
   scale_y_continuous(limits=c(0,1),expand=c(0,0))+
   scale_color_brewer(palette="Dark2")+
-  theme_classic(base_size = 14) +
-  #facet_wrap(~date) +
-  labs(x = "Colony size", y = "Average proportion of time feeding") +
+  theme_classic(base_size = 25) +
+  facet_wrap(~date) +
+  labs(x = "Colony size", y = "Per capita proportion of time foraging") +
   theme(legend.position = "right", axis.title=element_text(face="bold"))
 
 ggsave('~/Desktop/PhD/academic_projects/eel_diel/presentations/benthics_25/figures/feeding_big_small_colony.png', feeding_big_small_colony,
        width = 8, height = 10, units = 'in', dpi = 300)
 
+#Model
+df <- by_ind_df %>%
+  filter(prop_time_emerged >0.01) %>%
+  filter(prop_time_emerged < 1,!is.na(prop_time_emerged))  %>%
+  #filter(date != "2025-05-17")
+
+#%>%
+ # group_by(date,colony) %>%
+  #reframe(mean = mean(prop_time_emerged)) %>%
+  #ungroup()
+
+df$site <- as.factor(df$site)
+df$site <- relevel(df$site, ref = "L")
+
+model <- glmmTMB(prop_time_emerged ~ colony_size*site + (1|date) + (1|trial_ID) + (1|colony/individual_ID),
+                 family = beta_family(),
+                 data = df)
+summary(model)
+model_simres <- simulateResiduals(model)
+plot(model_simres)
+
+model <- glmmTMB(
+  cbind(emerged_s, total_s - emerged_s) ~ colony_size*edge_proximity
+    (1|date) + (1|site/individual_ID) + (1|trial_ID),
+  family = betabinomial(),
+  data = by_ind_df
+)
+summary(model)
+model_simres <- simulateResiduals(model)
+plot(model_simres)
 
 #Individuals
 ind_feeding_big_small_colony <- by_ind_df %>%
-  filter(prop_time_emerged >0) %>%
+  filter(prop_time_emerged >0.1) %>%
   group_by(date,site) %>%
-  mutate(bin_size = if_else(colony_size == min(colony_size), "small","large")) %>%
+  mutate(bin_size = if_else(colony_size == min(colony_size), "Small","Big")) %>%
   ungroup() %>%
   group_by(date,site) %>%
-  mutate(n_pairs = n_distinct(bin_size), bin_size = factor(bin_size, levels = c("small", "large"))) %>%
+  mutate(n_pairs = n_distinct(bin_size), bin_size = factor(bin_size, levels = c("Small", "Big"))) %>%
   ungroup() %>%
   filter(n_pairs > 1) %>%
   ggplot(aes(x = bin_size, y = prop_time_emerged, group = interaction(site,date), color = site)) +
   geom_jitter(width = 0.09, size = 2.5, alpha = 0.1) +
-  stat_summary(fun = "mean", geom = "line", size = 1) +
-  stat_summary(fun = "mean", geom = "point", size = 2.5) +
+  stat_summary(fun = "mean", geom = "line", size = 1.5) +
+  stat_summary(fun = "mean", geom = "point", size = 5) +
   scale_y_continuous(limits=c(0,1),expand=c(0,0))+
   scale_color_brewer(palette="Dark2")+
-  theme_classic(base_size = 14) +
+  theme_classic(base_size = 25) +
   #facet_wrap(~date) +
-  labs(x = "Colony size", y = "Average proportion of time feeding") +
+  labs(x = "Colony size", y = "Per capita proportion of time foraging") +
   theme(legend.position = "right", axis.title=element_text(face="bold"))
 
 ggsave('~/Desktop/PhD/academic_projects/eel_diel/presentations/benthics_25/figures/ind_feeding_big_small_colony.png', ind_feeding_big_small_colony,
@@ -210,20 +219,146 @@ edge_proximity_df <- topology_df %>%
 
 by_ind_df_edge <- left_join(by_ind_df, edge_proximity_df)
 
-by_ind_df_edge %>%
-  filter(prop_time_emerged >0) %>%
-  filter(colony %in% c("D2","D4","L1","F2")) %>%
-  ggplot(aes(x = edge_proximity, y = prop_time_emerged)) +
-  geom_point(size = 2.5, alpha = 0.1) +
+by_ind_df_edge <- by_ind_df_edge %>%
+  mutate(colony = factor(colony,
+                         levels = c("D1","D2",
+                                    "L1","L2",
+                                    "F2","F1")))
+
+means <- by_ind_df_edge %>%
+  group_by(colony,individual_ID) %>%
+  mutate(n_appear = n()) %>%
+  ungroup() %>%
+  filter(n_appear > 2) %>%
+  filter(prop_time_emerged >0.1) %>%
+  filter(colony %in% c("D1","D2","L1","F2","F1","L2")) %>%
+  ggplot(aes(x = edge_proximity, y = prop_time_emerged, color = site, group = individual_ID)) +
+  #geom_point(size = 2.5, alpha = 0.1) +
   #stat_summary(fun = "mean", geom = "line", linetype = "longdash", size = 1, alpha = 0.5) +
-  #stat_summary(fun = "mean", geom = "point", size = 2.5) +
+  stat_summary(fun = "mean", geom = "point", size = 2.5,alpha=0.9) +
   scale_y_continuous(limits=c(0,1),expand=c(0,0))+
   scale_color_brewer(palette="Dark2")+
-  geom_smooth(method = "lm")+
+  #geom_smooth(method = "lm")+
+  theme_classic() +
+  facet_wrap(~colony, ncol = 2) +
+  labs(x = "Edge Proximity", y = "Average proportion of time foraging") +
+  theme(axis.text = element_text(size = 15),
+          axis.title = element_text(size = 22, face = "bold"),
+          strip.text = element_text(size = 14),
+          legend.text = element_text(size = 14),
+          legend.title = element_text(size = 18))
+
+ggsave('~/Desktop/PhD/academic_projects/eel_diel/presentations/benthics_25/figures/avg_feeding-edge_prox-mean.png', means,
+       width = 10, height = 8, units = 'in', dpi = 300)
+
+means_ind <- by_ind_df_edge %>%
+  group_by(colony,individual_ID) %>%
+  mutate(n_appear = n()) %>%
+  ungroup() %>%
+  filter(n_appear > 2) %>%
+  filter(prop_time_emerged >0.1) %>%
+  filter(colony %in% c("D1","D2","L1","F2","F1","L2")) %>%
+  ggplot(aes(x = edge_proximity, y = prop_time_emerged, color = site, group = individual_ID)) +
+  geom_point(size = 2.5, alpha = 0.2) +
+  #stat_summary(fun = "mean", geom = "line", linetype = "longdash", size = 1, alpha = 0.5) +
+  stat_summary(fun = "mean", geom = "point", size = 2.5,alpha=0.9) +
+  scale_y_continuous(limits=c(0,1),expand=c(0,0))+
+  scale_color_brewer(palette="Dark2")+
+  #geom_smooth(method = "lm")+
+  theme_classic() +
+  facet_wrap(~colony, ncol = 2) +
+  labs(x = "Edge Proximity", y = "Proportion of time foraging") +
+  theme(axis.text = element_text(size = 15),
+        axis.title = element_text(size = 22, face = "bold"),
+        strip.text = element_text(size = 14),
+        legend.text = element_text(size = 14),
+        legend.title = element_text(size = 18))
+
+ggsave('~/Desktop/PhD/academic_projects/eel_diel/presentations/benthics_25/figures/avg_feeding-edge_prox-mean_ind.png', means_ind,
+       width = 10, height = 8, units = 'in', dpi = 300)
+
+
+
+df <- by_ind_df_edge %>%
+  filter(prop_time_emerged >0.01) %>%
+  filter(prop_time_emerged < 1,!is.na(prop_time_emerged)) 
+  
+df$site <- as.factor(df$site)
+df$site <- relevel(df$site, ref = "L")
+
+model <- glmmTMB(cbind(emerged_s, total_s - emerged_s) ~ edge_proximity*colony_size + colony_size*site + edge_proximity*site + (1|date) + (1|colony/individual_ID),
+              family = betabinomial(), data = df)
+summary(model)
+model_simres <- simulateResiduals(model)
+plot(model_simres)
+
+
+# Compute one mean per individual (within colony)
+
+ind_means <- by_ind_df_edge %>%
+  filter(prop_time_emerged > 0.001) %>%
+  #filter(colony %in% c("D1","D2","L1","F2","F1")) %>%
+  group_by(colony, individual_ID) %>%
+  summarise(
+    mean_edge_proximity = mean(edge_proximity),
+    mean_prop_time = mean(prop_time_emerged),
+    .groups = "drop",
+    n_obs = n(),
+  )
+
+# Plot
+g <- by_ind_df_edge %>%
+  filter(prop_time_emerged > 0.001) %>%
+  filter(n_obs>1)%>%
+  #filter(colony %in% c("D1","D2","L1","F2","F1")) %>%
+  ggplot(aes(x = edge_proximity, y = prop_time_emerged, color = colony)) +
+  #geom_point(size = 2.5, alpha = 0.1) +                 # raw points
+  geom_point(data = ind_means,                         # individual means
+             aes(x = mean_edge_proximity, 
+                 y = mean_prop_time),
+             size = 3) +
+  geom_smooth(method = "lm") +                         # LM on raw data
+  scale_y_continuous(limits=c(0,1),expand=c(0,0)) +
+  scale_color_brewer(palette="Dark2") +
   theme_classic(base_size = 14) +
-  #facet_wrap(~colony) +
-  labs(x = "Edge Proximity", y = "Proportion of time feeding") +
-  theme(legend.position = "right", axis.title=element_text(face="bold"))
+  facet_wrap(~colony) +
+  labs(x = "Edge Proximity", y = "Average proportion of time feeding") +
+  theme(legend.position="right", axis.title=element_text(face="bold"))
+
+ind_summary <- by_ind_df_edge %>%
+  filter(prop_time_emerged > 0,
+         colony %in% c("D1","D2","L1","F2","F1")) %>%
+  group_by(colony, individual_ID, edge_proximity) %>%
+  summarise(
+    mean_prop = mean(prop_time_emerged, na.rm = TRUE),
+    sd_prop = sd(prop_time_emerged, na.rm = TRUE),
+    n_obs = n(),
+    se_prop   = sd_prop / sqrt(n_obs),
+    .groups = "drop"
+  )
+
+avg_feedingedge_prox <- ind_summary %>%
+  filter(n_obs>2) %>%
+ggplot(aes(x = edge_proximity, y = mean_prop, color = colony)) +
+  geom_point(size = 3, alpha=0.3) +
+  geom_errorbar(aes(ymin = mean_prop - 1.96*se_prop,
+                    ymax = mean_prop + 1.96*se_prop),
+                width = 0.02,alpha=0.6) +
+  geom_smooth(method = "lm", se = TRUE) +
+  #scale_y_continuous(limits = c(0,1), expand = c(0,0)) +
+  scale_color_manual(values = c("chartreuse4","darkgreen","chocolate1","darkorchid","yellow")) +
+  theme_classic(base_size = 14) +
+  labs(x = "Edge Proximity",
+       y = "Average proportion of time feeding") +
+  facet_wrap(~colony) +
+  theme(legend.position = "right",
+        axis.title = element_text(face = "bold"),
+        text = element_text(size=20))
+
+
+ggsave('~/Desktop/PhD/academic_projects/eel_diel/presentations/benthics_25/figures/avg_feeding-edge_prox-ind.png', g,
+       width = 13, height = 8, units = 'in', dpi = 300)
+
 
 
 by_ind_df_edge_f <- by_ind_df_edge %>%
@@ -233,32 +368,99 @@ by_ind_df_edge_f <- by_ind_df_edge %>%
          date = as.Date(date),
          colony_ind_ID = paste(colony, individual_ID, sep = "_")) #%>%
 
-by_ind_df_edge_f %>%
+by_ind_df_edge_f <- by_ind_df_edge_f %>%
+  mutate(colony = factor(colony,
+                         levels = c("D1","L1",
+                                    "F2","D2",
+                                    "L2","F1")))
+line_plot <- by_ind_df_edge_f %>%
   filter(edge_proximity > 0) %>%
-  filter(prop_time_emerged > 0) %>%
-  filter(colony_ind_ID != "D4_15") %>%
+  #filter(prop_time_emerged > 0.01) %>%
+  filter(colony_ind_ID != "D2_15") %>%
   group_by(colony) %>%
   mutate(n_dates_colony = n_distinct(date)) %>%
   group_by(colony,individual_ID, n_dates_colony) %>%
-  filter(n_distinct(date[!is.na(prop_time_emerged)]) == n_dates_colony) %>%
+  #filter(n_distinct(date[!is.na(prop_time_emerged)]) == n_dates_colony) %>%
   ungroup() %>%
   ggplot(aes(x = date, y = prop_time_emerged,
              group = individual_ID, color = edge_proximity)) +
-  geom_point(alpha = 0.5) +
-  geom_line(alpha = 0.5) +
+  geom_point(alpha = 0.5, size = 0.3) +
+  geom_line(alpha = 0.5, size = 0.3) +
   facet_wrap(~colony) +
   theme_minimal() +
-  scale_color_brewer(palette="Dark2")+
-  theme(legend.position = "right", axis.title=element_text(face="bold")) +
-  labs(x = "Date", y = "Proportion of time feeding",color="Edge proximity") +
+  labs(x = "Date", y = "Proportion of time foraging",color="Edge proximity") +
   scale_color_viridis_c(option = "V",end=0.9)+  
-  theme_classic(base_size = 14)
+  theme_classic(base_size = 24) +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none",
+    axis.title = element_text(face = "bold")
+  )
+
+ggsave('~/Desktop/PhD/academic_projects/eel_diel/presentations/benthics_25/figures/avg_feeding-edge_prox-ind-date_all.png', line_plot,
+       width = 17, height = 8, units = 'in', dpi = 300)
+
 
   
+#Transition probabilities
+# Convert to data.table
+dt <- as.data.table(each_ind_each_sec_df)
+
+# Create factor for date if not already
+dt[, date_f := as.factor(date_f)]
+dt[, site := as.factor(site)]
+dt[, colony := as.factor(colony)]
+dt[, individual_ID := as.factor(individual_ID)]
+
+# Define bins by size in seconds
+bin_breaks <- seq(0, max(dt$sec_since_midnight, na.rm = TRUE) + bin_size, by = bin_size)
+
+# Aggregate directly
+agg_dt <- dt[, .(
+  value = first(value),
+  next_state = last(next_state),
+  n_emerged = first(n_emerged),
+  n_obs = .N
+), by = .(
+  date_f, site, colony, individual_ID, colony_size,
+  time_bin = cut(sec_since_midnight, breaks = bin_breaks, labels = FALSE, include.lowest = TRUE)
+)]
+
+# Compute stay_hidden / stay_emerged
+agg_dt[, stay_hidden := as.numeric(value == 0 & next_state == 0)]
+agg_dt[, stay_emerged := as.numeric(value == 1 & next_state == 1)]
+
+agg_dt_bin <- agg_dt %>%
+  group_by(date_f, colony) %>%
+  filter(!is.na(n_emerged)) %>%
+  filter(value == 1) %>%
+  mutate(emerged_bin = cut(n_emerged, breaks = 5)) %>%
+  count(emerged_bin, next_state) %>%
+  extract(emerged_bin,
+          into = c("min","max"),
+          remove = FALSE,
+          regex = "(?:\\(|\\[)(.*),(.*)(?:\\)|\\])",
+          convert = TRUE) %>%
+  mutate(emerged_bin= (min + max)/2)
+
+agg_dt %>%
+  ggplot(aes(x=n_emerged, y=next_state))+
+  geom_point(alpha = 0.1) + 
+  geom_smooth(method = "glm",
+              method.args = list(family = binomial),
+              se = TRUE) +
+  facet_wrap(~colony)
+
+
+
   
 
 #### 4 - 3D COLONY PLOT ####
 # Create the 3D scatter plot
+by_ind_df_f <- by_ind_df %>%
+  filter(colony == "L1") %>%
+  group_by(individual_ID) %>%
+  summarise(x = first(x), y = first(y), z = first(z))
 fig <- plot_ly(by_ind_df_f, x = ~x, y = ~y, z = ~z, type = "scatter3d", mode = "markers", text = by_ind_df_f$individual_ID)
 
 # Add axis titles and a main title (optional)
@@ -273,6 +475,14 @@ fig <- fig %>% layout(
 
 # Display the plot
 fig
+
+
+scatterplot3d(
+  by_ind_df_f$x, by_ind_df_f$y, by_ind_df_f$z,
+  angle = 0,      # 90° = bird’s-eye view
+  pch = 16,
+  color = "blue"
+)
 
 ##### 5 - MODELLING SITE, COLONY AND INDIVIDUAL LEVEL CONSISTENCY #####
 by_ind_df_f$date_c <- scale(by_ind_df_f$date, scale = FALSE)
@@ -426,7 +636,10 @@ ggplot(pred_combined, aes(x = n_emerged, y = predicted, color = transition)) +
   theme_minimal()
 
 
-
+pred_emerged_df %>%
+  ggplot() +
+  geom_point(aes(x=n_emerged, y = predicted))+
+  facet_wrap(site~time_bin_s)
 
 ### 6 - Run lengths and n emerged
 run_lengths <- process_all_transitions(transitions_path, metadata_path, threshold)
@@ -490,29 +703,34 @@ probs <- probs / sum(probs)
 chisq.test(D2_sync$observed_count, p = probs)
 
 ##### 8 - Pairwise synchrony
-pairwise_sync_inv_df <- pairwise_sync_df
+pairwise_sync_df <- pairwise_synchrony(transitions_path, metadata_path, threshold)
 
-pairwise_sync_inv_df <- pairwise_sync_inv_df %>%
-  rename(
+pairwise_sync_inv_df <- pairwise_sync_df %>%
+  transmute(
     id_i = id_j,
-    id_j = id_i
+    id_j = id_i,
+    synchrony,
+    colony,
+    date,
+    trial_ID,
+    site
   )
 
-pairwise_sync_total_df <- rbind(pairwise_sync_df, pairwise_sync_inv_df)
+pairwise_sync_total_df <- bind_rows(pairwise_sync_df,
+                                    pairwise_sync_inv_df)
 
-
-joined <- left_join(pairwise_sync_total_df, topology_df, join_by(id_i==individual_ID, colony == Colony, id_j == id_j))
+joined <- left_join(pairwise_sync_total_df, topology_df, join_by(id_i==individual_ID, colony == colony, id_j == id_j))
 
 facet_order <- joined %>%
-  filter(colony == "D4") %>%
+  filter(colony == "D2") %>%
   group_by(id_i) %>%
-  summarise(mean_ratio = mean(ratio_edge_to_centre, na.rm=TRUE)) %>%
+  summarise(mean_ratio = mean(edge_proximity, na.rm=TRUE)) %>%
   arrange(mean_ratio) %>%
   pull(id_i)
 
-
 joined %>%
   filter(colony == "D2") %>%
+  filter(distance>0)%>%
   #filter(date == "2025-06-09") %>%
   mutate(dist_rank = as.factor(dist_rank), 
          id_i = factor(id_i, levels = facet_order)) %>%
@@ -521,6 +739,181 @@ joined %>%
   geom_smooth(aes(group = 1), method = "lm", se =TRUE, color = "black") +  # one trend per facet
   facet_wrap(~ id_i) +
   theme(legend.position = "right")   # keep legend to show rank colors
+
+# compute average synchrony per pair across dates/trials
+pairwise_avg <- joined %>%
+  filter(distance > 0) %>%
+  group_by(colony, id_i, id_j, distance) %>%  # keep distance constant per pair
+  summarise(mean_synchrony = mean(synchrony, na.rm = TRUE),
+            n_obs = sum(!is.na(synchrony)),   # optional: how many dates contributed
+            .groups = "drop")
+
+facet_order <- pairwise_avg %>%
+  filter(colony == "D4") %>%
+  group_by(id_i) %>%
+  summarise(mean_distance = mean(distance, na.rm = TRUE)) %>%
+  arrange(mean_distance) %>%
+  pull(id_i)
+
+pairwise_avg %>%
+  filter(colony == "D4") %>%
+  mutate(id_i = factor(id_i, levels = facet_order)) %>%
+  ggplot(aes(x = distance, y = mean_synchrony)) +
+  geom_point(alpha = 0.6, size = 2) +
+  geom_smooth(method = "lm", se = TRUE, color = "black") +
+  facet_wrap(~ id_i, ncol = 8) +
+  theme_bw() +
+  labs(
+    x = "Distance between individuals",
+    y = "Average pairwise synchrony"
+  )
+
+##final
+library(dplyr)
+library(ggplot2)
+
+# ---- 1. Compute pairwise synchrony ----
+pairwise_sync_df <- pairwise_synchrony(transitions_path, metadata_path, threshold)
+
+pairwise_sync_sym <- bind_rows(
+  pairwise_sync_df,
+  pairwise_sync_df %>%
+    mutate(temp = id_i) %>%
+    transmute(
+      id_i = id_j,
+      id_j = temp,
+      synchrony,
+      colony,
+      date,
+      trial_ID,
+      site
+    )
+)
+
+
+# ---- 3. Join with distances / topology ----
+joined <- left_join(pairwise_sync_sym, topology_df,
+                    by = c("id_i" = "individual_ID",
+                           "id_j" = "id_j",
+                           "colony" = "colony"))
+
+# ---- 4. Order facets by mean edge proximity ----
+facet_order <- joined %>%
+  filter(colony == "D2") %>%
+  group_by(id_i) %>%
+  summarise(mean_edge_prox = mean(edge_proximity, na.rm=TRUE), .groups="drop") %>%
+  arrange(mean_edge_prox) %>%
+  pull(id_i)
+
+joined1 <- joined %>%
+  filter(colony == "D2") %>%
+  mutate(id_i = factor(id_i, levels = facet_order))
+
+# ---- 5. Plot raw points ----
+joined1 %>%
+  filter(distance >0) %>%
+  ggplot(aes(x = distance, y = synchrony, group = date)) +
+  geom_point(aes(color = distance), size = 2, alpha = 0.6) +
+  facet_wrap(~ id_i, ncol = 8) +
+  theme_bw() +
+  labs(
+    x = "Distance between individuals",
+    y = "Raw pairwise synchrony"
+  ) +
+  theme(
+    strip.text = element_text(size = 8),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "right"
+  )
+
+
+
+pairwise_avg <- joined %>%
+  filter(distance > 0) %>%
+  group_by(colony, id_i, id_j, distance) %>%  # keep distance constant per pair
+  summarise(mean_synchrony = mean(synchrony, na.rm = TRUE),
+            n_obs = sum(!is.na(synchrony)),   # optional: how many dates contributed
+            .groups = "drop")
+
+facet_order <- pairwise_avg %>%
+  filter(colony == "D2") %>%
+  group_by(id_i) %>%
+  summarise(mean_distance = mean(distance, na.rm = TRUE)) %>%
+  arrange(mean_distance) %>%
+  pull(id_i)
+
+pairwise_avg %>%
+  filter(colony == "D2") %>%
+  mutate(id_i = factor(id_i, levels = facet_order)) %>%
+  ggplot(aes(x = distance, y = mean_synchrony)) +
+  geom_point(alpha = 0.6, size = 2) +
+  geom_smooth(method = "lm", se = TRUE, color = "black") +
+  facet_wrap(~ id_i, ncol = 8) +
+  theme_bw() +
+  labs(
+    x = "Distance between individuals",
+    y = "Average pairwise synchrony"
+  )
+
+library(dplyr)
+library(ggplot2)
+
+#AVERAGES,BINNED
+# Define bin width
+bin_width <- 0.1
+
+pairwise_binned <- joined %>%
+  filter(distance > 0) %>%
+  mutate(
+    # Compute the bin start
+    bin_start = floor(distance / bin_width) * bin_width,
+    # Compute the bin midpoint for plotting
+    distance_mid = bin_start + bin_width / 2
+  ) %>%
+  group_by(colony, id_i, distance_mid) %>%
+  summarise(
+    mean_synchrony = mean(synchrony, na.rm = TRUE),
+    n_obs = sum(!is.na(synchrony)),
+    .groups = "drop",
+    edge_proximity = mean(edge_proximity)
+  )
+
+
+facet_order <- joined %>%
+  filter(colony == "D2") %>%
+  group_by(id_i) %>%
+  summarise(mean_ratio = mean(edge_proximity, na.rm=TRUE)) %>%
+  arrange(mean_ratio) %>%
+  pull(id_i)
+
+slopes <- pairwise_binned %>%
+  filter(colony == "D2") %>%
+  group_by(id_i) %>%
+  do(tidy(lm(mean_synchrony ~ distance_mid, data = .))) %>%
+  filter(term == "distance_mid") %>%
+  select(id_i, slope = estimate) %>%
+  arrange(desc(slope))
+
+facet_order <- slopes$id_i
+
+# Plot
+p<- pairwise_binned %>%
+  filter(colony == "D2") %>%
+  mutate(id_i = factor(id_i, levels = facet_order)) %>%
+  ggplot(aes(x = distance_mid, y = mean_synchrony, color = id_i)) +
+  geom_point(alpha = 0.6, size = 2) +
+  geom_smooth(method = "lm", se = TRUE, color = "black") +
+  facet_wrap(~ id_i, ncol = 8) +
+  theme_bw() +
+  theme(strip.text = element_blank())+
+  labs(
+    x = "Distance between individuals (binned)",
+    y = "Average pairwise synchrony"
+  )
+
+ggsave('~/Desktop/PhD/academic_projects/eel_diel/presentations/benthics_25/figures/pairwise_D2.png', p,
+       width = 10, height = 8, units = 'in', dpi = 300)
+
 
 
 
@@ -547,9 +940,3 @@ global_by_ind_dataset %>%
   geom_boxplot() +
   facet_wrap(~colony) +
   theme(legend.position = "none")
-
-
-
-
-
-

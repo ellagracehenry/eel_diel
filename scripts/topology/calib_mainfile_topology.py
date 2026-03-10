@@ -7,15 +7,15 @@ from calib_functions_topology import *
 
 ##################################################################################################USER EDITS START HERE################################################################################################
 #Enter the path to the topology csv file.
-CSV_path="/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/topology/garden_eel_diel-290525-L1/annotations_L1_290525.xlsx"
+CSV_path="/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/topology/garden_eel_diel_050625_L4/annotations.xlsx"
 #Enter the path/name for your output csv file.
-Output_calib="/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/topology/garden_eel_diel-290525-L1/calibmetrics.xlsx"
+Output_calib="/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/topology/garden_eel_diel_050625_L4/calibmetrics.xlsx"
 #Path for triangulated points
-output_path="/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/topology/garden_eel_diel-290525-L1/annotations_L1_290525_3D.xlsx"
+output_path="/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/topology/garden_eel_diel_050625_L4/annotations_L4_050625_3D.xlsx"
 #Base path for frames
-base_path="/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/topology/garden_eel_diel-290525-L1/triangulation_frames"
-calib1 = "/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/topology/garden_eel_diel-290525-L1/cam1_calib.MP4"
-calib2 = "/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/topology/garden_eel_diel-290525-L1/cam2_calib.MP4"
+base_path="/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/topology/garden_eel_diel_050625_L4/triangulation_frames"
+calib1 = "/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/topology/garden_eel_diel_050625_L4/cam1_calib.MP4"
+calib2 = "/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/topology/garden_eel_diel_050625_L4/cam2_calib.MP4"
 
 print(CSV_path)
 #define sheet

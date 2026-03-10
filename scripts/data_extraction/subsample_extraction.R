@@ -35,17 +35,35 @@ fill_holes <- function(vec, threshold = 5) {
   return(inverse_rle)
 }
 
-transitions <- read.csv("/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/transitions/updated/transitions_D4_05_06_25_complete.csv", header =FALSE)
+g <- "/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/transitions/updated/transitions_D2_09_06_25_complete.csv"
 
-current_colnames_T <- colnames(transitions) #get colnames
+temp <- read.csv(g, header = TRUE, na.string = c("NaN","NA")) #read data
+
+if (temp[1,1]>1){
+  temp <- read.csv(g, header = FALSE, na.string = c("NaN","NA")) #read data
+}
+if (!is.na(temp[2,2]) && temp[2,2] > 1){
+  temp[,2] <- NULL
+}
+
+current_colnames_T <- colnames(temp) #get colnames
 current_colnames_T[1] <- "individual_ID" #add individual_ID as colname
-colnames(transitions) <- current_colnames_T #re add columns to transitions
-colnames(transitions)[2:ncol(transitions)] <- seq(1, ncol(transitions) - 1) #Add a number column name
-transitions[,-1] <- lapply(transitions[,-1], as.numeric) #Convert to numeric
-transitions[, 2:ncol(transitions)] <- t(apply(transitions[, 2:ncol(transitions)], 1, fill_holes)) # Apply the function to each row, starting from the 2nd column
+colnames(temp) <- current_colnames_T #re add columns to transitions
+#temp$individual_ID <- as.character(temp$individual_ID)
+colnames(temp)[2:ncol(temp)] <- seq(1, ncol(temp) - 1) #Add a number column name
+temp[,-1] <- lapply(temp[,-1], as.numeric) #Convert to numeric
+temp[, 2:ncol(temp)] <- t(apply(
+  temp[, 2:ncol(temp)], 1, 
+  function(row) {
+    if (all(is.na(row))) {
+      return(rep(NA, length(row)))
+    }
+    fill_holes_all_segments(row, threshold) # Apply the function to each row, starting from the 2nd column
+  }
+))
 
 #Row for each individual, for each second
-long_format <- transitions %>%
+long_format <- temp %>%
   #filter(!individual_ID %in% c(1,2)) %>%
   pivot_longer(cols = 2:ncol(.),
                names_to = "second",
@@ -86,7 +104,7 @@ hide_sample <- hide_sample %>%
     frame   = ((second - 1) %% 512) + 1
   )
 
-start_file <- "GH049672.MP4"
+start_file <- "GH089798.MP4"
 
 start_code <- as.integer(sub("^GH(\\d{2}).*", "\\1", start_file))
 
@@ -96,13 +114,25 @@ hide_sample <- hide_sample %>%
     frame   = ((second - 1) %% 512) + 1,
     
     video_code = start_code + (segment - 1),
-    video_file = sprintf("frames_GH%02d9672", video_code)
+    video_file = sprintf("frames_GH%02d9798", video_code)
+  )
+
+hide_sample <- hide_sample %>%
+  mutate(
+    # convert 512-index space → 205-index space
+    frame_205_global = floor((second - 1) * 205 / 512),
+    
+    segment = floor(frame_205_global / 205) + 1,
+    frame   = (frame_205_global %% 205) + 1,
+    
+    video_code = start_code + (segment - 1),
+    video_file = sprintf("frames_GH%02d9720", video_code)
   )
 
 library(dplyr)
 
-source_root <- "/Volumes/eel_diel_frames/garden_eel_diel-050625-D4-cam1"
-dest_root   <- "/Volumes/GILLAB_AP/garden_eel_diel-050625-D4-cam1"
+source_root <- "/Volumes/eel_diel_frames/garden_eel_diel_090625_D4_cam2"
+dest_root   <- "/Volumes/GILLAB_AR/garden_eel_diel_090625_D4_cam2"
 
 for (i in seq_len(nrow(hide_sample))) {
   

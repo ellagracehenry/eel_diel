@@ -553,10 +553,10 @@ def calibrate_camera(base_path, images_folder):
             board_width_px  = corners[:, 0, 0].ptp()
             board_height_px = corners[:, 0, 1].ptp()
 
-            if board_width_px < 200 or board_height_px < 200:
-                print(f"⚠️ Skipping frame {i}: checkerboard too small "
-                      f"({board_width_px:.1f}×{board_height_px:.1f}px)")
-                continue
+            # if board_width_px < 200 or board_height_px < 200:
+            #     print(f"⚠️ Skipping frame {i}: checkerboard too small "
+            #           f"({board_width_px:.1f}×{board_height_px:.1f}px)")
+            #     continue
 
             cv.drawChessboardCorners(frame, (columns,rows), corners, ret)
             print(f"Number of corners; {len(corners)}")
@@ -843,8 +843,8 @@ def stereo_calibrate(base_path, mtx1, dist1, mtx2, dist2, frames_folder1, frames
             bw2 = corners2[:,0,0].ptp()
             bh2 = corners2[:,0,1].ptp()
 
-            if min(bw1, bh1, bw2, bh2) < 200:
-                continue
+            # if min(bw1, bh1, bw2, bh2) < 200:
+            #     continue
             
             cv.drawChessboardCorners(frame1, (columns,rows), corners1, c_ret1)
             #cv.imshow('img', frame1)

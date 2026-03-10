@@ -1,4 +1,5 @@
-pairwise_synchrony <- function(transitions_path, metadata_path, threshold){
+pairwise_synchrony <- 
+  function(transitions_path, metadata_path, threshold){
   
   
   #load in anything ending with csv
@@ -13,7 +14,7 @@ pairwise_synchrony <- function(transitions_path, metadata_path, threshold){
   out_list <- vector("list", length(files))
   
   for (i in seq_along(files)) {
-    f <- files[i]
+    f <- files[1]
     temp <- read.csv(f, header = TRUE, na.string = c("NaN","NA")) #read data
     
     if (temp[1,1]>1){
@@ -54,6 +55,9 @@ pairwise_synchrony <- function(transitions_path, metadata_path, threshold){
     
     n_ind <- length(unique(temp_long_s$individual_ID)) #count up how many individuals
     
+    temp <- temp %>%
+      filter(individual_ID %in% valid_ids)
+    
     ## STEP 2: NULL EXPECTATION PER PAIR
     p_prop_time_emerged <- outer(temp_long_s$prop_time_emerged, temp_long_s$prop_time_emerged, FUN = "*")
     diag(p_prop_time_emerged) <- NA
@@ -68,27 +72,28 @@ pairwise_synchrony <- function(transitions_path, metadata_path, threshold){
     pairs <- rbind(pairs, rep(0, ncol(pairs)))
     
     for (k in 1:ncol(pairs)) {
-      i <- pairs[1,k]
-      j <- pairs[2,k]
+      ii <- pairs[1,k]
+      jj <- pairs[2,k]
       
-      p_emerge_ij <- p_prop_time_emerged[i,j]
+      p_emerge_ij <- p_prop_time_emerged[ii,jj]
       
-      p_hide_ij <- p_prop_time_hidden[i,j]
+      p_hide_ij <- p_prop_time_hidden[ii,jj]
       
-      null_ij <- p_hide_ij # CAN ALSO BE + p_emerge_ij. Decide whether we want this to be from both or not
+      null_ij <- p_emerge_ij # CAN ALSO BE + p_emerge_ij. Decide whether we want this to be from both or not
       
       pairs[3,k] <- null_ij
       
     }
   
     ## STEP 3: OBSERVED SYNCHRONY PER PAIR
-    X <- as.matrix(temp)
+    X <- as.matrix(temp[,-1])
     storage.mode(X) <- "numeric"
     T <- ncol(X)
     co_emerge_matrix <- (X %*% t(X)) / T
     
     # observed / null synchrony per pair
     obs_sync <- mapply(function(i, j, k) {
+      if (pairs[3,k] <= 0) return(NA_real_)
       co_emerge_matrix[i, j] / pairs[3,k]
     }, pairs[1, ], pairs[2, ], seq_len(ncol(pairs)))
     

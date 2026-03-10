@@ -1,5 +1,5 @@
 %Load in data
-coord_filename = "annotations_L1_290525_3D.xlsx" %ADD NAME OF BALL DROP FILE WITH 3D COORDS
+coord_filename = "annotations_L4_050625_3D.xlsx" %ADD NAME OF BALL DROP FILE WITH 3D COORDS
 imgcoordsRC = readtable(coord_filename);
 %imgcoordsRC = Tall;
 
@@ -11,7 +11,7 @@ for k = 1:size(imgcoordsRC,1)
     % Extract coordinates for base, head, and ball points
     base_x = imgcoordsRC{k,15};
     base_y = imgcoordsRC{k,16};
-    base_z = imgcoordsRC{k,17};
+    base_z = -imgcoordsRC{k,17};
     
 
     % Skip if any key coordinates are missing
@@ -37,6 +37,4 @@ xlim([-2 2.5])
 ylim([-1.2 0.8])
 hold off
 
-
-sqrt((imgcoordsRC{28,56} - imgcoordsRC{33,56})^2 + (imgcoordsRC{28,57} - imgcoordsRC{33,57})^2 + (imgcoordsRC{28,58} - imgcoordsRC{33,58})^2)
 
