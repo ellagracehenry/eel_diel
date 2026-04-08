@@ -30,7 +30,7 @@ source("scripts/ABM/R/fill_holes.R")
 source("scripts/ABM/R/fill_holes_NaNsafe.R")
 
 #Initialise
-threshold = 3
+threshold = 5
 transitions_path = "/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/transitions/updated"
 metadata_path = "/Users/ellag/Library/CloudStorage/GoogleDrive-elhe2720@colorado.edu/My Drive/Colorado/PhD/PROJECTS/diel_cycle_garden_eel/diel_eel_processing.xlsx"
 
@@ -115,78 +115,47 @@ ggsave('~/Desktop/PhD/academic_projects/eel_diel/presentations/benthics_25/figur
 ##### 2 - PLOTTING P_EMERGED PER COLONY #####
 #Means 
 feeding_big_small_colony <- by_ind_df %>%
-  filter(prop_time_emerged >0.1) %>%
+  filter(prop_time_emerged >0) %>%
   group_by(date,site) %>%
-  mutate(bin_size = if_else(colony_size == min(colony_size), "Small","Big")) %>%
+  mutate(bin_size = if_else(colony_size == min(colony_size), "small","large")) %>%
   ungroup() %>%
   group_by(date,site) %>%
-  mutate(n_pairs = n_distinct(bin_size), bin_size = factor(bin_size, levels = c("Small", "Big"))) %>%
+  mutate(n_pairs = n_distinct(bin_size), bin_size = factor(bin_size, levels = c("small", "large"))) %>%
   ungroup() %>%
   #filter(n_pairs > 1) %>%
   ggplot(aes(x = bin_size, y = prop_time_emerged, group = interaction(site,date), color = site)) +
-  stat_summary(fun = function(x) mean(x, na.rm = TRUE), geom = "line", size = 1.5) +
-  stat_summary(fun = function(x) mean(x, na.rm = TRUE), geom = "point", size = 4, alpha = 0.3) +
-  #stat_summary(fun.data = mean_cl_normal, geom = "ribbon", alpha = 0.2, aes(fill = site), color = NA)+
+  stat_summary(fun = function(x) mean(x, na.rm = TRUE), geom = "line", size = 1) +
+  stat_summary(fun = function(x) mean(x, na.rm = TRUE), geom = "point", size = 2.5) +
   scale_y_continuous(limits=c(0,1),expand=c(0,0))+
   scale_color_brewer(palette="Dark2")+
-  theme_classic(base_size = 25) +
-  facet_wrap(~date) +
-  labs(x = "Colony size", y = "Per capita proportion of time foraging") +
+  theme_classic(base_size = 14) +
+  #facet_wrap(~date) +
+  labs(x = "Colony size", y = "Average proportion of time feeding") +
   theme(legend.position = "right", axis.title=element_text(face="bold"))
 
 ggsave('~/Desktop/PhD/academic_projects/eel_diel/presentations/benthics_25/figures/feeding_big_small_colony.png', feeding_big_small_colony,
        width = 8, height = 10, units = 'in', dpi = 300)
 
-#Model
-df <- by_ind_df %>%
-  filter(prop_time_emerged >0.01) %>%
-  filter(prop_time_emerged < 1,!is.na(prop_time_emerged))  %>%
-  #filter(date != "2025-05-17")
-
-#%>%
- # group_by(date,colony) %>%
-  #reframe(mean = mean(prop_time_emerged)) %>%
-  #ungroup()
-
-df$site <- as.factor(df$site)
-df$site <- relevel(df$site, ref = "L")
-
-model <- glmmTMB(prop_time_emerged ~ colony_size*site + (1|date) + (1|trial_ID) + (1|colony/individual_ID),
-                 family = beta_family(),
-                 data = df)
-summary(model)
-model_simres <- simulateResiduals(model)
-plot(model_simres)
-
-model <- glmmTMB(
-  cbind(emerged_s, total_s - emerged_s) ~ colony_size*edge_proximity
-    (1|date) + (1|site/individual_ID) + (1|trial_ID),
-  family = betabinomial(),
-  data = by_ind_df
-)
-summary(model)
-model_simres <- simulateResiduals(model)
-plot(model_simres)
 
 #Individuals
 ind_feeding_big_small_colony <- by_ind_df %>%
-  filter(prop_time_emerged >0.1) %>%
+  filter(prop_time_emerged >0) %>%
   group_by(date,site) %>%
-  mutate(bin_size = if_else(colony_size == min(colony_size), "Small","Big")) %>%
+  mutate(bin_size = if_else(colony_size == min(colony_size), "small","large")) %>%
   ungroup() %>%
   group_by(date,site) %>%
-  mutate(n_pairs = n_distinct(bin_size), bin_size = factor(bin_size, levels = c("Small", "Big"))) %>%
+  mutate(n_pairs = n_distinct(bin_size), bin_size = factor(bin_size, levels = c("small", "large"))) %>%
   ungroup() %>%
   filter(n_pairs > 1) %>%
   ggplot(aes(x = bin_size, y = prop_time_emerged, group = interaction(site,date), color = site)) +
   geom_jitter(width = 0.09, size = 2.5, alpha = 0.1) +
-  stat_summary(fun = "mean", geom = "line", size = 1.5) +
-  stat_summary(fun = "mean", geom = "point", size = 5) +
+  stat_summary(fun = "mean", geom = "line", size = 1) +
+  stat_summary(fun = "mean", geom = "point", size = 2.5) +
   scale_y_continuous(limits=c(0,1),expand=c(0,0))+
   scale_color_brewer(palette="Dark2")+
-  theme_classic(base_size = 25) +
+  theme_classic(base_size = 14) +
   #facet_wrap(~date) +
-  labs(x = "Colony size", y = "Per capita proportion of time foraging") +
+  labs(x = "Colony size", y = "Average proportion of time feeding") +
   theme(legend.position = "right", axis.title=element_text(face="bold"))
 
 ggsave('~/Desktop/PhD/academic_projects/eel_diel/presentations/benthics_25/figures/ind_feeding_big_small_colony.png', ind_feeding_big_small_colony,
@@ -219,115 +188,24 @@ edge_proximity_df <- topology_df %>%
 
 by_ind_df_edge <- left_join(by_ind_df, edge_proximity_df)
 
-by_ind_df_edge <- by_ind_df_edge %>%
-  mutate(colony = factor(colony,
-                         levels = c("D1","D2",
-                                    "L1","L2",
-                                    "F2","F1")))
-
-means <- by_ind_df_edge %>%
-  group_by(colony,individual_ID) %>%
-  mutate(n_appear = n()) %>%
-  ungroup() %>%
-  filter(n_appear > 2) %>%
-  filter(prop_time_emerged >0.1) %>%
-  filter(colony %in% c("D1","D2","L1","F2","F1","L2")) %>%
-  ggplot(aes(x = edge_proximity, y = prop_time_emerged, color = site, group = individual_ID)) +
-  #geom_point(size = 2.5, alpha = 0.1) +
+by_ind_df_edge %>%
+  filter(prop_time_emerged >0) %>%
+  filter(colony %in% c("D1","D2","L1","F2")) %>%
+  ggplot(aes(x = edge_proximity, y = prop_time_emerged, group = colony, color = colony)) +
+  geom_point(size = 2.5, alpha = 0.1) +
   #stat_summary(fun = "mean", geom = "line", linetype = "longdash", size = 1, alpha = 0.5) +
-  stat_summary(fun = "mean", geom = "point", size = 2.5,alpha=0.9) +
+  stat_summary(fun = "mean", geom = "point", size = 2.5) +
   scale_y_continuous(limits=c(0,1),expand=c(0,0))+
   scale_color_brewer(palette="Dark2")+
-  #geom_smooth(method = "lm")+
-  theme_classic() +
-  facet_wrap(~colony, ncol = 2) +
-  labs(x = "Edge Proximity", y = "Average proportion of time foraging") +
-  theme(axis.text = element_text(size = 15),
-          axis.title = element_text(size = 22, face = "bold"),
-          strip.text = element_text(size = 14),
-          legend.text = element_text(size = 14),
-          legend.title = element_text(size = 18))
-
-ggsave('~/Desktop/PhD/academic_projects/eel_diel/presentations/benthics_25/figures/avg_feeding-edge_prox-mean.png', means,
-       width = 10, height = 8, units = 'in', dpi = 300)
-
-means_ind <- by_ind_df_edge %>%
-  group_by(colony,individual_ID) %>%
-  mutate(n_appear = n()) %>%
-  ungroup() %>%
-  filter(n_appear > 2) %>%
-  filter(prop_time_emerged >0.1) %>%
-  filter(colony %in% c("D1","D2","L1","F2","F1","L2")) %>%
-  ggplot(aes(x = edge_proximity, y = prop_time_emerged, color = site, group = individual_ID)) +
-  geom_point(size = 2.5, alpha = 0.2) +
-  #stat_summary(fun = "mean", geom = "line", linetype = "longdash", size = 1, alpha = 0.5) +
-  stat_summary(fun = "mean", geom = "point", size = 2.5,alpha=0.9) +
-  scale_y_continuous(limits=c(0,1),expand=c(0,0))+
-  scale_color_brewer(palette="Dark2")+
-  #geom_smooth(method = "lm")+
-  theme_classic() +
-  facet_wrap(~colony, ncol = 2) +
-  labs(x = "Edge Proximity", y = "Proportion of time foraging") +
-  theme(axis.text = element_text(size = 15),
-        axis.title = element_text(size = 22, face = "bold"),
-        strip.text = element_text(size = 14),
-        legend.text = element_text(size = 14),
-        legend.title = element_text(size = 18))
-
-ggsave('~/Desktop/PhD/academic_projects/eel_diel/presentations/benthics_25/figures/avg_feeding-edge_prox-mean_ind.png', means_ind,
-       width = 10, height = 8, units = 'in', dpi = 300)
-
-
-
-df <- by_ind_df_edge %>%
-  filter(prop_time_emerged >0.01) %>%
-  filter(prop_time_emerged < 1,!is.na(prop_time_emerged)) 
-  
-df$site <- as.factor(df$site)
-df$site <- relevel(df$site, ref = "L")
-
-model <- glmmTMB(cbind(emerged_s, total_s - emerged_s) ~ edge_proximity*colony_size + colony_size*site + edge_proximity*site + (1|date) + (1|colony/individual_ID),
-              family = betabinomial(), data = df)
-summary(model)
-model_simres <- simulateResiduals(model)
-plot(model_simres)
-
-
-# Compute one mean per individual (within colony)
-
-ind_means <- by_ind_df_edge %>%
-  filter(prop_time_emerged > 0.001) %>%
-  #filter(colony %in% c("D1","D2","L1","F2","F1")) %>%
-  group_by(colony, individual_ID) %>%
-  summarise(
-    mean_edge_proximity = mean(edge_proximity),
-    mean_prop_time = mean(prop_time_emerged),
-    .groups = "drop",
-    n_obs = n(),
-  )
-
-# Plot
-g <- by_ind_df_edge %>%
-  filter(prop_time_emerged > 0.001) %>%
-  filter(n_obs>1)%>%
-  #filter(colony %in% c("D1","D2","L1","F2","F1")) %>%
-  ggplot(aes(x = edge_proximity, y = prop_time_emerged, color = colony)) +
-  #geom_point(size = 2.5, alpha = 0.1) +                 # raw points
-  geom_point(data = ind_means,                         # individual means
-             aes(x = mean_edge_proximity, 
-                 y = mean_prop_time),
-             size = 3) +
-  geom_smooth(method = "lm") +                         # LM on raw data
-  scale_y_continuous(limits=c(0,1),expand=c(0,0)) +
-  scale_color_brewer(palette="Dark2") +
+  geom_smooth(method = "lm")+
   theme_classic(base_size = 14) +
   facet_wrap(~colony) +
-  labs(x = "Edge Proximity", y = "Average proportion of time feeding") +
-  theme(legend.position="right", axis.title=element_text(face="bold"))
+  labs(x = "Edge Proximity", y = "Proportion of time feeding") +
+  theme(legend.position = "right", axis.title=element_text(face="bold"))
 
 ind_summary <- by_ind_df_edge %>%
   filter(prop_time_emerged > 0,
-         colony %in% c("D1","D2","L1","F2","F1")) %>%
+         colony %in% c("D1","D2","L1","F2")) %>%
   group_by(colony, individual_ID, edge_proximity) %>%
   summarise(
     mean_prop = mean(prop_time_emerged, na.rm = TRUE),
@@ -341,12 +219,12 @@ avg_feedingedge_prox <- ind_summary %>%
   filter(n_obs>2) %>%
 ggplot(aes(x = edge_proximity, y = mean_prop, color = colony)) +
   geom_point(size = 3, alpha=0.3) +
-  geom_errorbar(aes(ymin = mean_prop - 1.96*se_prop,
-                    ymax = mean_prop + 1.96*se_prop),
+  geom_errorbar(aes(ymin = mean_prop - se_prop,
+                    ymax = mean_prop + se_prop),
                 width = 0.02,alpha=0.6) +
-  geom_smooth(method = "lm", se = TRUE) +
+  #geom_smooth(method = "lm", se = TRUE) +
   #scale_y_continuous(limits = c(0,1), expand = c(0,0)) +
-  scale_color_manual(values = c("chartreuse4","darkgreen","chocolate1","darkorchid","yellow")) +
+  scale_color_manual(values = c("chartreuse4","darkgreen","chocolate1","darkorchid")) +
   theme_classic(base_size = 14) +
   labs(x = "Edge Proximity",
        y = "Average proportion of time feeding") +
@@ -356,7 +234,7 @@ ggplot(aes(x = edge_proximity, y = mean_prop, color = colony)) +
         text = element_text(size=20))
 
 
-ggsave('~/Desktop/PhD/academic_projects/eel_diel/presentations/benthics_25/figures/avg_feeding-edge_prox-ind.png', g,
+ggsave('~/Desktop/PhD/academic_projects/eel_diel/presentations/benthics_25/figures/avg_feeding-edge_prox.png', avg_feedingedge_prox,
        width = 13, height = 8, units = 'in', dpi = 300)
 
 
@@ -368,38 +246,26 @@ by_ind_df_edge_f <- by_ind_df_edge %>%
          date = as.Date(date),
          colony_ind_ID = paste(colony, individual_ID, sep = "_")) #%>%
 
-by_ind_df_edge_f <- by_ind_df_edge_f %>%
-  mutate(colony = factor(colony,
-                         levels = c("D1","L1",
-                                    "F2","D2",
-                                    "L2","F1")))
-line_plot <- by_ind_df_edge_f %>%
+by_ind_df_edge_f %>%
   filter(edge_proximity > 0) %>%
-  #filter(prop_time_emerged > 0.01) %>%
-  filter(colony_ind_ID != "D2_15") %>%
+  #filter(prop_time_emerged > 0) %>%
+  filter(colony_ind_ID != "D4_15") %>%
   group_by(colony) %>%
   mutate(n_dates_colony = n_distinct(date)) %>%
   group_by(colony,individual_ID, n_dates_colony) %>%
-  #filter(n_distinct(date[!is.na(prop_time_emerged)]) == n_dates_colony) %>%
+  filter(n_distinct(date[!is.na(prop_time_emerged)]) == n_dates_colony) %>%
   ungroup() %>%
   ggplot(aes(x = date, y = prop_time_emerged,
              group = individual_ID, color = edge_proximity)) +
-  geom_point(alpha = 0.5, size = 0.3) +
-  geom_line(alpha = 0.5, size = 0.3) +
+  geom_point(alpha = 0.5) +
+  geom_line(alpha = 0.5) +
   facet_wrap(~colony) +
   theme_minimal() +
-  labs(x = "Date", y = "Proportion of time foraging",color="Edge proximity") +
+  scale_color_brewer(palette="Dark2")+
+  theme(legend.position = "right", axis.title=element_text(face="bold")) +
+  labs(x = "Date", y = "Proportion of time feeding",color="Edge proximity") +
   scale_color_viridis_c(option = "V",end=0.9)+  
-  theme_classic(base_size = 24) +
-  theme(
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    legend.position = "none",
-    axis.title = element_text(face = "bold")
-  )
-
-ggsave('~/Desktop/PhD/academic_projects/eel_diel/presentations/benthics_25/figures/avg_feeding-edge_prox-ind-date_all.png', line_plot,
-       width = 17, height = 8, units = 'in', dpi = 300)
-
+  theme_classic(base_size = 14)
 
   
 #Transition probabilities
@@ -457,10 +323,6 @@ agg_dt %>%
 
 #### 4 - 3D COLONY PLOT ####
 # Create the 3D scatter plot
-by_ind_df_f <- by_ind_df %>%
-  filter(colony == "L1") %>%
-  group_by(individual_ID) %>%
-  summarise(x = first(x), y = first(y), z = first(z))
 fig <- plot_ly(by_ind_df_f, x = ~x, y = ~y, z = ~z, type = "scatter3d", mode = "markers", text = by_ind_df_f$individual_ID)
 
 # Add axis titles and a main title (optional)
@@ -475,14 +337,6 @@ fig <- fig %>% layout(
 
 # Display the plot
 fig
-
-
-scatterplot3d(
-  by_ind_df_f$x, by_ind_df_f$y, by_ind_df_f$z,
-  angle = 0,      # 90° = bird’s-eye view
-  pch = 16,
-  color = "blue"
-)
 
 ##### 5 - MODELLING SITE, COLONY AND INDIVIDUAL LEVEL CONSISTENCY #####
 by_ind_df_f$date_c <- scale(by_ind_df_f$date, scale = FALSE)

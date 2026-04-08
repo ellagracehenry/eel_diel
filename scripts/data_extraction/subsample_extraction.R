@@ -35,7 +35,7 @@ fill_holes <- function(vec, threshold = 5) {
   return(inverse_rle)
 }
 
-g <- "/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/transitions/updated/transitions_D2_09_06_25_complete.csv"
+g <- "/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/transitions/updated/transitions_L1_25_06_25_complete.csv"
 
 temp <- read.csv(g, header = TRUE, na.string = c("NaN","NA")) #read data
 
@@ -45,6 +45,7 @@ if (temp[1,1]>1){
 if (!is.na(temp[2,2]) && temp[2,2] > 1){
   temp[,2] <- NULL
 }
+
 
 current_colnames_T <- colnames(temp) #get colnames
 current_colnames_T[1] <- "individual_ID" #add individual_ID as colname
@@ -104,7 +105,7 @@ hide_sample <- hide_sample %>%
     frame   = ((second - 1) %% 512) + 1
   )
 
-start_file <- "GH089798.MP4"
+start_file <- "GH079675.MP4"
 
 start_code <- as.integer(sub("^GH(\\d{2}).*", "\\1", start_file))
 
@@ -114,7 +115,7 @@ hide_sample <- hide_sample %>%
     frame   = ((second - 1) %% 512) + 1,
     
     video_code = start_code + (segment - 1),
-    video_file = sprintf("frames_GH%02d9798", video_code)
+    video_file = sprintf("frames_GH%02d9675", video_code)
   )
 
 hide_sample <- hide_sample %>%
@@ -131,8 +132,8 @@ hide_sample <- hide_sample %>%
 
 library(dplyr)
 
-source_root <- "/Volumes/eel_diel_frames/garden_eel_diel_090625_D4_cam2"
-dest_root   <- "/Volumes/GILLAB_AR/garden_eel_diel_090625_D4_cam2"
+source_root <- "/Volumes/eel_7/garden-eel-diel-020725_D2_cam1-FRAMES"
+dest_root   <- "/Volumes/Gil_Lab/garden_eel_diel-020725-D1-cam1"
 
 for (i in seq_len(nrow(hide_sample))) {
   
@@ -142,7 +143,7 @@ for (i in seq_len(nrow(hide_sample))) {
   video_folder <- row$video_file
   
   # Frame file name (e.g. 00510.jpg)
-  frame_file <- sprintf("%05d.png", row$frame)
+  frame_file <- sprintf("%05d.jpg", row$frame)
   
   # Full source path
   src <- file.path(
