@@ -29,16 +29,16 @@ drctry<-"/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/error-test/"
 initials<-"EH" ## edit this line with observer initials
 
 #Path to images
-image_path <- "/Volumes/Card_K2/eel_diel_frames/garden_eel_diel-230525-D2-cam1/"
+image_path <- "/Volumes/Card_K2/eel_diel_frames/garden_eel_diel-230525-D1-cam1/"
 
 #Path to coords
-coord <- read.csv("/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/imgcoordsRC/garden_eel_diel-230525-D2-cam1.csv", header=FALSE)
+coord <- read.csv("/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/imgcoordsRC/garden_eel_diel-230525-D1-cam1.csv", header=FALSE)
 
 #read in transition file
-transitions = read.csv("/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/transitions/updated/transitions_D2_23_05_25_complete.csv", header=FALSE)
+transitions = read.csv("/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/transitions/updated/transitions_D1_23_05_25_complete.csv", header=FALSE)
 transitions <- transitions[complete.cases(transitions),]
 
-first_seg = "GH089724.MP4"
+first_seg = "GH041037.MP4"
 beg <- substr(first_seg, start = 1, stop = 2)
 end <- substr(first_seg, start = 5, stop = 8)
 first_seg_ID <- as.numeric(substr(first_seg, start = 3,stop=4))
@@ -48,7 +48,7 @@ first_seg_ID <- as.numeric(substr(first_seg, start = 3,stop=4))
 chosen_cols <- sample(2:ncol(transitions), floor((ncol(transitions)-1)*.01))
 
 #initialise a dataframe
-error_df <- data.frame(matrix(ncol=7,nrow=length(chosen_cols)))
+error_df <- data.frame(matrix(ncol=8,nrow=length(chosen_cols)))
 colnames(error_df) <- c("ncol","nrow","image_folder","image","eel_ID","mask_state","manual_state","error")
 error_df$ncol <- chosen_cols
 
@@ -73,7 +73,7 @@ for (i in 1:length(chosen_cols)) {
 
   error_df$nrow[i] <- row_ID
   error_df$eel_ID[i] <- eel_ID
-  error_df$state[i] <- state
+  error_df$mask_state[i] <- state
   error_df$image_folder[i] <- final_seg_ID
   error_df$image[i] <- frame_ID
 }
@@ -113,6 +113,11 @@ for (i in 1:nrow(error_df)) {
       geom_text(
         data = coord_i,
         aes(x = V2, y = V1, label = V3),
+        color = "black", size = 3
+      ) +
+      geom_text(
+        data = coord_i[coord_i$V3 == error_df$eel_ID[i], ],
+        aes(x = V2, y = V1, label = V3),
         color = "red", size = 3
       ) +
       coord_fixed() +
@@ -122,10 +127,12 @@ for (i in 1:nrow(error_df)) {
   gc()
   
   choice <- menu(c("emerged", "hidden"))
-  error_df$error[i] <- if (choice == 1) 1 else 0
+  error_df$manual_state[i] <- if (choice == 1) 1 else 0
 }
 
 error_df$error <- ifelse(error_df$mask_state != error_df$manual_state, 1, 0)
+
+
 
 write.csv(error_df, paste(drctry,"error","garden_eel_diel-230525-D2-cam1.csv",sep=""))
 

@@ -1,14 +1,14 @@
 setwd("~/Desktop/PhD/academic_projects/eel_diel/data/transitions/updated")
 
-data <- read.csv("/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/transitions/transitions_L1_28_05_25_complete.csv", header = FALSE)
+data <- read.csv("/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/transitions/updated/transitions_D1_23_05_25_complete.csv", header = FALSE)
 
 data[c(1),] <- NA
 
 data[c(22,25,24),27649:32769] <- NA
 
-cut_20 <- data[c(22,25,24),5120:5632]
+data1 <- data[,2:9890]
 
-write.csv(data, "transitions_L1_28_05_25_complete_updated.csv")
+write.csv(data1, "/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/transitions/updated/transitions_D1_23_05_25_complete.csv")
 
 added512 <- matrix(rep(rep(NA,nrow(data))),512)
 
