@@ -1,6 +1,4 @@
-## distinguishing head from tail ##
-###################################
-## thanks for your help with this ##
+
 
 '%!in%'<-Negate('%in%') ## helper function
 
@@ -22,11 +20,19 @@ require(doParallel)
 require(pcds)
 require(magick)
 require(png)
+require(ggplot2)
+require(grid)
 
 np<-import("numpy") ## make sure you have numpy in your python install! if not, run "pip install numpy" in a shell with your favored python activated
 ## edit line below with your home directory (probably where this file is located)
 drctry<-"/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/error-test/"
 initials<-"EH" ## edit this line with observer initials
+
+#Path to images
+image_path <- "/Volumes/Card_K2/eel_diel_frames/garden_eel_diel-230525-D2-cam1/"
+
+#Path to coords
+coord <- read.csv("/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/imgcoordsRC/garden_eel_diel-230525-D2-cam1.csv", header=FALSE)
 
 #read in transition file
 transitions = read.csv("/Users/ellag/Desktop/PhD/academic_projects/eel_diel/data/transitions/updated/transitions_D2_23_05_25_complete.csv", header=FALSE)
@@ -43,7 +49,7 @@ chosen_cols <- sample(2:ncol(transitions), floor((ncol(transitions)-1)*.01))
 
 #initialise a dataframe
 error_df <- data.frame(matrix(ncol=7,nrow=length(chosen_cols)))
-colnames(error_df) <- c("ncol","nrow","image_folder","image","eel_ID","state","error")
+colnames(error_df) <- c("ncol","nrow","image_folder","image","eel_ID","mask_state","manual_state","error")
 error_df$ncol <- chosen_cols
 
 for (i in 1:length(chosen_cols)) {
@@ -59,14 +65,12 @@ for (i in 1:length(chosen_cols)) {
     real_seg_ID_str <- paste("0",real_seg_ID_str, sep="")
   }
   
-  final_seg_ID <- paste("frames_", beg, real_seg_ID_str, end, sep="")
+  final_seg_ID <- paste(image_path, "frames_", beg, real_seg_ID_str, end, sep="")
   frame_ID <- ((col_ID/512) %% 1)*512
   
   frame_ID <- sprintf("%05d", frame_ID)
   frame_ID <- paste(frame_ID, ".png", sep="")
-  
 
-  
   error_df$nrow[i] <- row_ID
   error_df$eel_ID[i] <- eel_ID
   error_df$state[i] <- state
@@ -74,26 +78,56 @@ for (i in 1:length(chosen_cols)) {
   error_df$image[i] <- frame_ID
 }
 
+quartz()
+
 for (i in 1:nrow(error_df)) {
-  drctry_folder <-paste0(drctry,error_df$image_folder[i])
-  setwd(drctry_folder)
   
-  flnme <- error_df$image[i]
+  img_path <- file.path(error_df$image_folder[i], error_df$image[i])
   
-  jj <- readPNG(flnme)
-  plot.new()
-  rasterImage(jj,0,0,1,1)
+  img <- magick::image_read(img_path)
+  orig_info <- magick::image_info(img)
+  orig_w <- orig_info$width
+  orig_h <- orig_info$height
   
-  choicen1<-menu(c("correct","incorrect"))
-  if(choicen1==1){
+  img <- magick::image_resize(img, "1280x")
+  info <- magick::image_info(img)
+  w <- info$width
+  h <- info$height
   
-  error_df$error[i] <- 0
+  scale_factor_x <- w / orig_w
+  scale_factor_y <- h / orig_h
   
-  } else {
-    error_df$error[i] <- 0
-  }
+  raster_img <- as.raster(img)
+  
+  coord_i <- coord
+  coord_i$V1 <- (orig_h - coord$V1)*scale_factor_y
+  coord_i$V2 <- (coord$V2)*scale_factor_x
+  
+  print(
+    ggplot() +
+      annotation_custom(
+        grob = grid::rasterGrob(raster_img),
+        xmin = 0, xmax = w,
+        ymin = 0, ymax = h
+      ) +
+      geom_text(
+        data = coord_i,
+        aes(x = V2, y = V1, label = V3),
+        color = "red", size = 3
+      ) +
+      coord_fixed() +
+      ggtitle(paste("What state is", error_df$eel_ID[i], "in?"))
+  )
+  
+  gc()
+  
+  choice <- menu(c("emerged", "hidden"))
+  error_df$error[i] <- if (choice == 1) 1 else 0
 }
 
+error_df$error <- ifelse(error_df$mask_state != error_df$manual_state, 1, 0)
+
+write.csv(error_df, paste(drctry,"error","garden_eel_diel-230525-D2-cam1.csv",sep=""))
 
 
 
